@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "AI-POC"
+version = "0.1.0"
+description = ""
+authors = ["https://github.com/AleksNeStu"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+flask = "^3.0.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
