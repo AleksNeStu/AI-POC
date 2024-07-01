@@ -6,6 +6,8 @@ import cv2
 import os
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 import matplotlib.pyplot as plt
+from PIL import Image
+
 
 
 def _is_interactive():
@@ -50,7 +52,7 @@ def get_image(image_path: str, to_show: bool = True):
     image = cv2.imread(image_path)
     return image
 
-def show_image(image = None, image_path = None):
+def show_image(image = None, image_path = None, use_pil: bool = True):
     if image_path:
         image = get_image(image_path)
     #Show image
@@ -59,16 +61,25 @@ def show_image(image = None, image_path = None):
         # from google.colab.patches import cv2_imshow
         # cv2_imshow(image)
     else:
-        # cv2.imshow('Savanna Image', image)
-        plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB), interpolation='none') # Convert the image from BGR to RGB
-        # color
-        # space
-        plt.title("Image repr")
-        plt.show()
+        if use_pil:
+            # Convert the image from BGR to RGB color space
+            image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            # Converting numpy array to PIL image so we can use show method of PIL Image class
+            Image.fromarray(image_rgb).show()
+        else:
+            # Some issues with res quality
+            # cv2.imshow('Savanna Image', image)
+            plt.imshow(
+                cv2.cvtColor(image, cv2.COLOR_BGR2RGB),
+                interpolation='none') # Convert the image from BGR to RGB
+            # color
+            # space
+            plt.title("Image repr")
+            plt.show()
 
-        # Wait for a key press and close the window
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+            # Wait for a key press and close the window
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
 
 
 def add_cv_data_to_image(image, cv_data):
