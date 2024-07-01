@@ -115,6 +115,7 @@ def add_cv_data_to_image(image, cv_data):
         xmax = box["xmax"]
         ymax = box["ymax"]
         label = result["label"]
+        label_ft = translate_text(label)[0]['translation_text']
 
         red_color = (255, 50, 50)
 
@@ -123,7 +124,7 @@ def add_cv_data_to_image(image, cv_data):
 
         # Draw the label.
         cv2.putText(
-            image, label,
+            image, label_ft,
             (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX,
             1, red_color, 2)
 
@@ -132,8 +133,7 @@ def add_cv_data_to_image(image, cv_data):
 
 if __name__ == "__main__":
     image_path = "savanna2.jpg"
-    res = translate_text('Hello word')
-
+    # res = translate_text('Hello word')
 
     image = get_image(image_path)
     # Show original image
