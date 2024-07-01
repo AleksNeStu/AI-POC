@@ -16,16 +16,19 @@ def _is_interactive():
 
 is_interactive = _is_interactive()
 
-token_access = os.environ.get("API_KEY_HUGGING_FACE")
-HEADERS = {
-    "Authorization": f"Bearer {token_access}"
-}
-# https://huggingface.co/facebook/detr-resnet-50
-# Detection TRansformer (DETR) model trained end-to-end on COCO 2017 object detection (118k annotated images).
-API_URL = "https://api-inference.huggingface.co/models/facebook/detr-resnet-50"
-
+API_KEY_HUGGING_FACE = os.environ.get("API_KEY_HUGGING_FACE")
 
 # https://huggingface.co/docs/api-inference/detailed_parameters#object-detection-task
+# https://huggingface.co/facebook/detr-resnet-50
+# Detection TRansformer (DETR) model trained end-to-end on COCO 2017 object detection (118k annotated images).
+API_URL_CV = "https://api-inference.huggingface.co/models/facebook/detr-resnet-50"
+HEADERS_CV = {
+    "Authorization": f"Bearer {API_KEY_HUGGING_FACE}"
+}
+# https://huggingface.co/Helsinki-NLP/opus-mt-en-es
+API_URL_NLP = "https://api-inference.huggingface.co/models/Helsinki-NLP/opus-mt-en-fr"
+HEADERS_NLP = {"Authorization": f"Bearer {API_KEY_HUGGING_FACE}"}
+
 
 
 @retry(wait=wait_exponential(
@@ -36,7 +39,7 @@ API_URL = "https://api-inference.huggingface.co/models/facebook/detr-resnet-50"
 def get_cv_data(image_path: str):
     with open(image_path, "rb") as f:
         data = f.read()
-    response = requests.request("POST", API_URL, headers=HEADERS, data=data)
+    response = requests.request("POST", API_URL_CV, headers=HEADERS_CV, data=data)
     data = json.loads(response.content.decode("utf-8"))
     if isinstance(data, dict) and data.get("error"):
         estimated_time = data.get("estimated_time", 0)
@@ -46,6 +49,28 @@ def get_cv_data(image_path: str):
 
     return data
 
+
+@retry(wait=wait_exponential(
+    multiplier=1, min=2, max=10),
+    stop=stop_after_attempt(5),
+    retry=retry_if_exception_type(requests.exceptions.RequestException)
+)
+def translate_text(text: str):
+    payload = {
+        "inputs": text,
+    }
+    data = json.dumps(payload)
+    response = requests.request(
+        "POST", API_URL_NLP, headers=HEADERS_NLP, data=data)
+    data = json.loads(response.content.decode("utf-8"))
+
+    if isinstance(data, dict) and data.get("error"):
+        estimated_time = data.get("estimated_time", 0)
+        time.sleep(estimated_time)
+        print(f"Error: {data['error']}, estimated time: {data['estimated_time']}")
+        raise requests.exceptions.RequestException
+
+    return data
 
 
 def get_image(image_path: str, to_show: bool = True):
@@ -107,6 +132,9 @@ def add_cv_data_to_image(image, cv_data):
 
 if __name__ == "__main__":
     image_path = "savanna2.jpg"
+    res = translate_text('Hello word')
+
+
     image = get_image(image_path)
     # Show original image
     # show_image(image)
