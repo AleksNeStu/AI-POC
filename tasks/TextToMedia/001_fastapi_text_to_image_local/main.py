@@ -44,8 +44,9 @@ def generate_image(
         seed=seed,
         guidance_scale=guidance_scale,
     )
-    image.save("image.png")
-    return FileResponse("image.png")
+    name = "image-generated.jpg"
+    image.save(name)
+    return FileResponse(name)
 
 
 @app.get("/generate-memory")

@@ -42,7 +42,7 @@ def obtain_image(
     prompt: str,
     *,
     seed: int | None = None,
-    num_inference_steps: int = 14,
+    num_inference_steps: int = 50,  # NOTE: Use less e.g. 3 in debug mode to test whole app
     guidance_scale: float = 7.5,
 ) -> Image:
     # If you want deterministic output you can seed a random seed and pass a generator to the pipeline

@@ -24,6 +24,9 @@ This repository contains the files to build your very own AI image generation we
 ![image-generated.jpg](image-generated.jpg)![image.png]
 
 
+# Ref:
+https://www.youtube.com/watch?v=_BZGtifh_gw&ab_channel=DeepLearningAI
+
 **Local run example**
 ```
 INFO:     127.0.0.1:59428 - "GET /openapi.json HTTP/1.1" 200 OK
