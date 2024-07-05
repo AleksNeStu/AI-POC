@@ -20,3 +20,7 @@ huggingface.co/docs/diffusers
 
 Diffusers: State-of-the-art diffusion models for image and audio generation in PyTorch and FLAX.
 
+
+3) [langchain](https://github.com/langchain-ai/langchain)
+
+LangChain is a framework for developing applications powered by large language models (LLMs).

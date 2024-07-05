@@ -2,11 +2,11 @@
 name = "AI-POC"
 version = "0.1.0"
 description = ""
-authors = ["https://github.com/AleksNeStu"]
+authors = ["Alex Nestu"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = ">=3.11,<3.13"
 flask = "^3.0.3"
 requests = "^2.32.3"
 opencv-python = "^4.10.0.84"
@@ -25,6 +25,19 @@ torch = "^2.3.1"
 jupyter = "^1.0.0"
 fastapi = "^0.111.0"
 accelerate = "^0.32.1"
+openai = "^1.35.10"
+chromadb = "^0.5.3"
+tiktoken = "^0.7.0"
+langchain-community = "^0.2.6"
+unstructured = "^0.14.9"
+#unstructured = { version = "*", extras = ["pdf"] }
+huggingface-hub = "^0.23.4"
+layoutparser = "^0.3.4"
+pillow-heif = "^0.17.0"
+unstructured-inference = "^0.7.36"
+unstructured-pytesseract = "^0.3.12"
+pytesseract = "^0.3.10"
+sentence-transformers = "^3.0.1"
 
 
 [tool.poetry.group.dev.dependencies]

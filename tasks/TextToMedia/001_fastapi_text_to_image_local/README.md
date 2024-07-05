@@ -24,8 +24,6 @@ This repository contains the files to build your very own AI image generation we
 ![image-generated.jpg](image-generated.jpg)![image.png]
 
 
-# Ref:
-https://www.youtube.com/watch?v=_BZGtifh_gw&ab_channel=DeepLearningAI
 
 **Local run example**
 ```
@@ -34,3 +32,5 @@ Using device: cpu
 100%|██████████| 50/50 [06:08<00:00,  7.37s/it]
 INFO:     127.0.0.1:55088 - "GET /generate?prompt=Monkey%20Fish&num_inference_steps=50&guidance_scale=7.5 HTTP/1.1" 200 OK
 ```
+
+[Ref](https://www.youtube.com/watch?v=_BZGtifh_gw&ab_channel=DeepLearningAI)

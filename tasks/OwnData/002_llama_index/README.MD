@@ -1,0 +1,10 @@
+[llama_index](https://github.com/run-llama/llama_index)
+
+LlamaIndex is a data framework for your LLM applications
+
+
+LlamaIndex (GPT Index) is a data framework for your LLM application. Building with LlamaIndex typically involves working with LlamaIndex core and a chosen set of integrations (or plugins). There are two ways to start building with LlamaIndex in Python:
+
+Starter: llama-index (https://pypi.org/project/llama-index/). A starter Python package that includes core LlamaIndex as well as a selection of integrations.
+
+Customized: llama-index-core (https://pypi.org/project/llama-index-core/). Install core LlamaIndex and add your chosen LlamaIndex integration packages on LlamaHub that are required for your application. There are over 300 LlamaIndex integration packages that work seamlessly with core, allowing you to build with your preferred LLM, embedding, and vector store providers.
