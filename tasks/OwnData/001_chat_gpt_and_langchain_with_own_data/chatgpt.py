@@ -3,7 +3,7 @@ import sys
 
 import openai
 from langchain.chains import ConversationalRetrievalChain, RetrievalQA
-from langchain.chat_models import ChatOpenAI
+from langchain.chat_models import ChatOpenAI, HumanInputChatModel
 # https://python.langchain.com/docs/integrations/document_loaders/
 from langchain.document_loaders import DirectoryLoader, TextLoader
 from langchain.embeddings import OpenAIEmbeddings
@@ -41,10 +41,15 @@ else:
   else:
     index = VectorstoreIndexCreator(embedding=embedding).from_loaders([loader])
 
-chain = ConversationalRetrievalChain.from_llm(
+chain_chat_gpt = ConversationalRetrievalChain.from_llm(
   llm=ChatOpenAI(model="gpt-3.5-turbo"),
   retriever=index.vectorstore.as_retriever(search_kwargs={"k": 1}),
 )
+chain_free = ConversationalRetrievalChain.from_llm(
+  llm=HumanInputChatModel(model="gpt-3.5-turbo"),
+  retriever=index.vectorstore.as_retriever(search_kwargs={"k": 1}),
+)
+chain = chain_free
 
 chat_history = []
 while True:
