@@ -1,3 +1,5 @@
 langchain
 jupyter
 pypdf
+yt_dlp
+pydub
