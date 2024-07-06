@@ -2,8 +2,10 @@ import os
 import openai
 import sys
 from dotenv import load_dotenv, find_dotenv
+
 from langchain.document_loaders import PyPDFLoader
 from langchain.document_loaders.blob_loaders.youtube_audio import YoutubeAudioLoader
+from langchain.document_loaders import WebBaseLoader
 
 from pathlib import Path
 from langchain.document_loaders.generic import GenericLoader
@@ -38,4 +40,8 @@ yt_loader = GenericLoader(
 )
 yt_data = yt_loader.load()
 
-g = 1
+# URLs (web data)
+md_url = 'https://github.com/langchain-ai/langchain/blob/master/README.md'
+web_loader = WebBaseLoader(md_url)
+web_data = web_loader.load()
+web_data_snippet = web_data[0].page_content[500:]
