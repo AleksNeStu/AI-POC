@@ -4,6 +4,8 @@ import sys
 from dotenv import load_dotenv, find_dotenv
 import pickle
 from pathlib import Path
+from unittest import mock
+
 
 
 from langchain_community.document_loaders import YoutubeAudioLoader
@@ -16,9 +18,69 @@ from langchain_community.document_loaders.parsers.audio import (
     OpenAIWhisperParser, OpenAIWhisperParserLocal,
     FasterWhisperParser, YandexSTTParser
 )
+import torch
 
 from langchain_core.documents import Document
 
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+# You can set compute_type to "float32" or "int8".
+# Since your GPU does not support float16, you should set "int8" and not "int8_float16".
+compute_type = "float16" if device == 'cuda' else 'int8'
+
+
+
+def lazy_parse_patched(self, blob):
+    """Lazily parse the blob."""
+    import io
+
+    try:
+        from pydub import AudioSegment
+    except ImportError:
+        raise ImportError(
+            "pydub package not found, please install it with `pip install pydub`"
+        )
+    try:
+        from faster_whisper import WhisperModel
+    except ImportError:
+        raise ImportError(
+            "faster_whisper package not found, please install it with "
+            "`pip install faster-whisper`"
+        )
+
+    # get the audio
+    if isinstance(blob.data, bytes):
+        # blob contains the audio
+        audio = AudioSegment.from_file(io.BytesIO(blob.data))
+    elif blob.data is None and blob.path:
+        # Audio file from disk
+        audio = AudioSegment.from_file(blob.path)
+    else:
+        raise ValueError("Unable to get audio from blob")
+
+    file_obj = io.BytesIO(audio.export(format="mp3").read())
+
+    # Transcribe
+    # TODO: Mock FasterWhisperParser due to issue
+    # https://github.com/langchain-ai/langchain/issues/23953
+    model = WhisperModel(
+        self.model_size, device=self.device, compute_type=compute_type
+    )
+
+    segments, info = model.transcribe(file_obj, beam_size=5)
+
+    for segment in segments:
+        yield Document(
+            page_content=segment.text,
+            metadata={
+                "source": blob.source,
+                "timestamps": "[%.2fs -> %.2fs]" % (segment.start, segment.end),
+                "language": info.language,
+                "probability": "%d%%" % round(info.language_probability * 100),
+                **blob.metadata,
+            },
+        )
+
+FasterWhisperParser.lazy_parse = lazy_parse_patched
 
 
 
@@ -80,32 +142,52 @@ def get_web(md_url: str = 'https://github.com/langchain-ai/langchain/blob/master
     return web_data
 
 # YouTube
-def get_youtube(yt_path: Path = current_dir_parent / "data/youtube/url1.url", use_paid_services: bool = False):
+def get_youtube(yt_path: Path = current_dir_parent / "data/youtube/url1.url",
+                use_paid_services: bool = False,
+                faster_whisper: bool = True,
+                wisper_local: bool = False):
     with open(yt_path, 'r') as f:
         yt_path_str = f.read()
 
     tmp_dir = current_dir_parent / "tmp"
+    yt_data = None
     if use_paid_services:
-        yt_loader = GenericLoader(
+        yt_loader_whisper = GenericLoader(
             blob_loader=YoutubeAudioLoader([yt_path_str], str(tmp_dir)),
             blob_parser=OpenAIWhisperParser(api_key=OPENAI_API_KEY)
         )
-        # yt_loader = GenericLoader(
-        #     blob_loader=YoutubeAudioLoader([yt_path_str], str(tmp_dir)),
-        #     blob_parser=OpenAIWhisperParserLocal()
-        # )
-        yt_data = yt_loader.load()
-        # print(yt_data)
+        yt_data = yt_loader_whisper.load()
+    elif faster_whisper:
+        # https://api.python.langchain.com/en/latest/document_loaders/langchain_community.document_loaders.parsers.audio.FasterWhisperParser.html
+        yt_loader_faster_whisper = GenericLoader(
+            blob_loader=YoutubeAudioLoader([yt_path_str], str(tmp_dir)),
+            blob_parser=FasterWhisperParser(device=device)
+        )
+        FasterWhisperParser.lazy_parse
+        yt_data = yt_loader_faster_whisper.load()
+    elif wisper_local:
+        yt_loader_whisper_local = GenericLoader(
+            blob_loader=YoutubeAudioLoader([yt_path_str], str(tmp_dir)),
+            blob_parser=OpenAIWhisperParserLocal(device=device)
+        )
+        yt_data = yt_loader_whisper_local.load()
     else:
         yt_data = current_collection['yt_data']
+
+    # print(yt_data)
     result_collection['yt_data'] = yt_data
 
 
-
-if __name__ == '__main__':
+def docs_load():
+    get_youtube(use_paid_services=False, faster_whisper=True, wisper_local=False)
     get_notion()
     get_pdf()
     get_web()
-    get_youtube()
-    dump_collection()
-    res = 1
+    # dump_collection()
+
+def docs_split():
+    g = 1
+
+if __name__ == '__main__':
+    docs_load()
+    docs_split()
