@@ -1,29 +1,29 @@
 import os
-import openai
-import sys
-from dotenv import load_dotenv, find_dotenv
 import pickle
+import sys
+from dataclasses import dataclass
 from pathlib import Path
-from unittest import mock
+from typing import Iterator
+
+import openai
 # python -m spacy download en_core_web_md
 import spacy
-
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-
-from langchain_community.document_loaders import YoutubeAudioLoader
+import torch
+from dotenv import load_dotenv, find_dotenv
+from langchain_community.document_loaders import NotionDirectoryLoader
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.document_loaders import WebBaseLoader
-from langchain_community.document_loaders import NotionDirectoryLoader
-
+from langchain_community.document_loaders import YoutubeAudioLoader
 from langchain_community.document_loaders.generic import GenericLoader
 from langchain_community.document_loaders.parsers.audio import (
     OpenAIWhisperParser, OpenAIWhisperParserLocal,
     FasterWhisperParser, YandexSTTParser
 )
-import torch
-
+from langchain_community.document_loaders.blob_loaders import Blob
 from langchain_core.documents import Document
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
 
 use_paid_services = False
 sys.path.append('../..')
@@ -42,12 +42,14 @@ compute_type = "float16" if device == 'cuda' else 'int8'
 nlp_eng = spacy.load('en_core_web_md')
 
 
-result_collection = {
-    'notion_data': None,
-    'pdf_data': None,
-    'web_data': None,
-    'yt_data': None,
-}
+@dataclass
+class CollectionData:
+    notion_data: Iterator[Document] | None = None
+    pdf_data: Iterator[Document] | None = None
+    web_data: Iterator[Document] | None = None
+    yt_data: Iterator[Document] | None = None
+
+collection_data = CollectionData()
 
 def are_texts_similar(text1, text2, use_spacy: bool = True):
     if use_spacy:
@@ -70,7 +72,7 @@ def are_texts_similar(text1, text2, use_spacy: bool = True):
     return text_similarity > 0.90 # Adjust the threshold as needed
 
 
-def lazy_parse_patched(self, blob):
+def lazy_parse_patched(self, blob: Blob) -> Iterator[Document]:
     """Lazily parse the blob."""
     import io
 
@@ -124,16 +126,20 @@ def lazy_parse_patched(self, blob):
 FasterWhisperParser.lazy_parse = lazy_parse_patched
 
 
-def dump_collection(collection: str = 'result_collection.pkl'):
-    with open(collection, 'wb') as f:
-        pickle.dump(result_collection, f)
+def dump_collection(collection: str = 'collection_data'):
+    collection_file = f'{collection}.pkl'
+    with open(collection_file, 'wb') as f:
+        pickle.dump(collection_data, f)
 
-def load_collection(collection: str = 'result_collection.pkl'):
-    with open(collection, 'rb') as f:
+def load_collection(collection: str = 'collection_data'):
+    collection_file = f'{collection}.pkl'
+    with open(collection_file, 'rb') as f:
         res = pickle.load(f)
     return res
 
-current_collection = load_collection()
+
+collection_data_saved = load_collection('collection_data') if (current_dir / 'collection_data.pkl').exists() else None
+collection_split_saved = load_collection('collection_split') if (current_dir / 'collection_split.pkl').exists() else None
 
 # Notion
 def get_notion(notion_path: Path = current_dir_parent / "data/docs/md"):
@@ -141,7 +147,7 @@ def get_notion(notion_path: Path = current_dir_parent / "data/docs/md"):
     notion_data = notion_loader.load()
     notion_meta = notion_data[0].metadata
     # print(notion_meta)
-    result_collection['notion_data'] = notion_data
+    collection_data.notion_data = notion_data
     return notion_data
 
 # PDF
@@ -152,7 +158,7 @@ def get_pdf(pdf_path: Path = current_dir_parent / "data/docs/pdf/MachineLearning
     page = pdf_data[3]
     # print(page.page_content[:100])
     # print(page.metadata)
-    result_collection['pdf_data'] = pdf_data
+    collection_data.pdf_data = pdf_data
     return pdf_data
 
 # URLs (web data)
@@ -160,7 +166,7 @@ def get_web(md_url: str = 'https://github.com/langchain-ai/langchain/blob/master
     web_loader = WebBaseLoader(md_url)
     web_data = web_loader.load()
     web_data_snippet = web_data[0].page_content[500:600]
-    result_collection['web_data'] = web_data
+    collection_data.web_data = web_data
     # print(web_data_snippet)
     return web_data
 
@@ -168,7 +174,8 @@ def get_web(md_url: str = 'https://github.com/langchain-ai/langchain/blob/master
 def get_youtube(yt_path: Path = current_dir_parent / "data/youtube/url1.url",
                 use_paid_services: bool = False,
                 faster_whisper: bool = True,
-                wisper_local: bool = False):
+                wisper_local: bool = False
+                ):
     with open(yt_path, 'r') as f:
         yt_path_str = f.read()
 
@@ -179,6 +186,7 @@ def get_youtube(yt_path: Path = current_dir_parent / "data/youtube/url1.url",
             blob_loader=YoutubeAudioLoader([yt_path_str], str(tmp_dir)),
             blob_parser=OpenAIWhisperParser(api_key=OPENAI_API_KEY)
         )
+        blob_parser = YandexSTTParser  #TODO: Test and extend the function
         yt_data = yt_loader_whisper.load()
     elif faster_whisper:
         # https://api.python.langchain.com/en/latest/document_loaders/langchain_community.document_loaders.parsers.audio.FasterWhisperParser.html
@@ -194,15 +202,16 @@ def get_youtube(yt_path: Path = current_dir_parent / "data/youtube/url1.url",
         )
         yt_data = yt_loader_whisper_local.load()
     else:
-        yt_data = current_collection['yt_data']
+        yt_data = collection_data_saved.yt_data
 
-    # Compare diff provider
-    openai_res = current_collection['yt_data'][0].page_content
-    local_whisper_res = yt_data[0].page_content
-    assert are_texts_similar(openai_res, local_whisper_res) == True
+    if collection_data_saved:
+        # Compare diff provider
+        openai_res = collection_data_saved.yt_data[0].page_content
+        local_whisper_res = yt_data[0].page_content
+        assert are_texts_similar(openai_res, local_whisper_res) == True
 
     # print(yt_data)
-    result_collection['yt_data'] = yt_data
+    collection_data.yt_data = yt_data
 
 
 def docs_load():
