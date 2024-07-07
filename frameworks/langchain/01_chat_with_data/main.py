@@ -4,7 +4,7 @@ import pickle
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, Union, Optional
 from dotenv import load_dotenv, find_dotenv
 
 # ML
@@ -21,17 +21,32 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_community.document_loaders import YoutubeAudioLoader
 from langchain_community.document_loaders.generic import GenericLoader
+
 # Langchain Document loaders Audio
 from langchain_community.document_loaders.parsers.audio import (
     OpenAIWhisperParser, OpenAIWhisperParserLocal,
     FasterWhisperParser, YandexSTTParser
 )
+
 # Langchain text splitter
-from langchain.text_splitter import RecursiveCharacterTextSplitter, CharacterTextSplitter
+from langchain.text_splitter import (
+    RecursiveCharacterTextSplitter, CharacterTextSplitter, TokenTextSplitter,
+    MarkdownHeaderTextSplitter,
+    #TODO: Test rest of the splitters
+    # MarkdownTextSplitter,
+    # SentenceTransformersTokenTextSplitter,
+    # Language,
+    # NLTKTextSplitter,
+    # SpacyTextSplitter,
+)
+
 # Langchain Document loaders help
 from langchain_community.document_loaders.blob_loaders import Blob
 from langchain_core.documents import Document
 
+
+CollectionDataType = Optional[Iterator[Document]]
+CollectionSplitType = Optional[Union[Iterator[Document], str]]
 
 use_paid_services = False
 sys.path.append('../..')
@@ -52,12 +67,25 @@ nlp_eng = spacy.load('en_core_web_md')
 
 @dataclass
 class CollectionData:
-    notion_data: Iterator[Document] | None = None
-    pdf_data: Iterator[Document] | None = None
-    web_data: Iterator[Document] | None = None
-    yt_data: Iterator[Document] | None = None
+    notion_data: CollectionDataType = None
+    pdf_data: CollectionDataType = None
+    web_data: CollectionDataType = None
+    yt_data: CollectionDataType = None
 
 collection_data = CollectionData()
+
+txt_target, web_md_target, pdf_page_target, notion_md_target = '', '', '', ''
+
+@dataclass
+class CollectionSplit:
+    notion_split: CollectionSplitType = None
+    pdf_split: CollectionSplitType = None
+    web_split: CollectionSplitType = None
+    yt_split: CollectionSplitType = None
+
+
+collection_split = CollectionSplit()
+
 
 def are_texts_similar(text1, text2, use_spacy: bool = True):
     if use_spacy:
@@ -230,7 +258,8 @@ def docs_load():
     get_web()
     # dump_collection()
 
-def docs_split():
+def get_targets():
+    global txt_target, web_md_target, pdf_page_target, notion_md_target
     if not collection_data_saved:
         docs_load()
     # NOTE:# OpenAIWhisperParserLocal other can produce > 1 len of chunks, adjust if needed
@@ -245,6 +274,56 @@ def docs_split():
 
     assert len(collection_data_saved.notion_data) == 34
     notion_md_target = collection_data_saved.notion_data[7].page_content
+
+def docs_split():
+    get_targets()
+    text_char_splitter = CharacterTextSplitter(
+        chunk_size=450,
+        chunk_overlap=0,
+        separator = ' '
+    )
+    txt_split_char = text_char_splitter.split_text(txt_target)
+    assert len(txt_split_char) == 19
+
+    text_rec_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=150,
+        chunk_overlap=0,
+        separators=["\n\n", "\n", "(?<=\. )", " ", ""]
+    )
+    txt_split_rec = text_rec_splitter.split_text(txt_target)
+    assert len(txt_split_rec) == 58
+
+    text_docf_splitter = CharacterTextSplitter(
+        separator="\n",
+        chunk_size=1000,
+        chunk_overlap=150,
+        length_function=len
+    )
+    pdf_split_docf = text_docf_splitter.split_documents(
+        collection_data_saved.pdf_data)
+    assert len(collection_data_saved.pdf_data) == 22
+    assert len(pdf_split_docf) == 77
+
+    notion_split_docf = text_docf_splitter.split_documents(
+        collection_data_saved.notion_data)
+    assert len(collection_data_saved.notion_data) == 34
+    assert len(notion_split_docf) == 442
+
+    token_splitter_docf = TokenTextSplitter(chunk_size=20, chunk_overlap=0)
+    pdf_token_split_docf = token_splitter_docf.split_documents(
+        collection_data_saved.pdf_data)
+    assert len(txt_split_rec) == 58
+
+    headers_to_split_on = [
+        ("#", "Header 1"),
+        ("##", "Header 2"),
+        ("###", "Header 3"),
+    ]
+    markdown_splitter = MarkdownHeaderTextSplitter(
+        headers_to_split_on=headers_to_split_on
+    )
+    notion_md_targets_txt = ' '.join([d.page_content for d in collection_data_saved.notion_data])
+    md_header_splits = markdown_splitter.split_text(notion_md_targets_txt)
 
 
 if __name__ == '__main__':
