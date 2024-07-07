@@ -1,28 +1,36 @@
+# Python
 import os
 import pickle
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator
+from dotenv import load_dotenv, find_dotenv
 
-import openai
+# ML
 # python -m spacy download en_core_web_md
 import spacy
 import torch
-from dotenv import load_dotenv, find_dotenv
+import openai
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Langchain Document loaders
 from langchain_community.document_loaders import NotionDirectoryLoader
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_community.document_loaders import YoutubeAudioLoader
 from langchain_community.document_loaders.generic import GenericLoader
+# Langchain Document loaders Audio
 from langchain_community.document_loaders.parsers.audio import (
     OpenAIWhisperParser, OpenAIWhisperParserLocal,
     FasterWhisperParser, YandexSTTParser
 )
+# Langchain text splitter
+from langchain.text_splitter import RecursiveCharacterTextSplitter, CharacterTextSplitter
+# Langchain Document loaders help
 from langchain_community.document_loaders.blob_loaders import Blob
 from langchain_core.documents import Document
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
 
 
 use_paid_services = False
@@ -223,8 +231,22 @@ def docs_load():
     # dump_collection()
 
 def docs_split():
-    g = 1
+    if not collection_data_saved:
+        docs_load()
+    # NOTE:# OpenAIWhisperParserLocal other can produce > 1 len of chunks, adjust if needed
+    assert len(collection_data_saved.yt_data) == 1
+    txt_target = collection_data_saved.yt_data[0].page_content
+
+    assert len(collection_data_saved.web_data) == 1
+    web_md_target = collection_data_saved.web_data[0].page_content
+
+    assert len(collection_data_saved.pdf_data) == 22
+    pdf_page_target = collection_data_saved.pdf_data[7].page_content
+
+    assert len(collection_data_saved.notion_data) == 34
+    notion_md_target = collection_data_saved.notion_data[7].page_content
+
 
 if __name__ == '__main__':
-    docs_load()
+    # docs_load()
     docs_split()
