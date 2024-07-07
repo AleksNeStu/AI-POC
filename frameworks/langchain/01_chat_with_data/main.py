@@ -5,8 +5,11 @@ from dotenv import load_dotenv, find_dotenv
 import pickle
 from pathlib import Path
 from unittest import mock
+# python -m spacy download en_core_web_md
+import spacy
 
-
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 from langchain_community.document_loaders import YoutubeAudioLoader
 from langchain_community.document_loaders import PyPDFLoader
@@ -22,11 +25,49 @@ import torch
 
 from langchain_core.documents import Document
 
+use_paid_services = False
+sys.path.append('../..')
+_ = load_dotenv(find_dotenv()) # read local .env file
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
+# OPENAI_API_KEY = os.environ.get('API_KEY_OPEN_AI')
+openai.api_key = OPENAI_API_KEY
+current_dir = Path.cwd()
+current_dir_parent = current_dir.parent
+
+
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 # You can set compute_type to "float32" or "int8".
 # Since your GPU does not support float16, you should set "int8" and not "int8_float16".
 compute_type = "float16" if device == 'cuda' else 'int8'
+nlp_eng = spacy.load('en_core_web_md')
 
+
+result_collection = {
+    'notion_data': None,
+    'pdf_data': None,
+    'web_data': None,
+    'yt_data': None,
+}
+
+def are_texts_similar(text1, text2, use_spacy: bool = True):
+    if use_spacy:
+        text1_nlp = nlp_eng(text1)
+        text2_nlp = nlp_eng(text2)
+        text_similarity = text1_nlp.similarity(text2_nlp)
+
+    else:
+        # Vectorize texts
+        tfidf_vectorizer = TfidfVectorizer()
+        try:
+            tfidf_matrix = tfidf_vectorizer.fit_transform([text1, text2])
+        except Exception as ex:
+            t = 1
+
+        # Calculate cosine similarity
+        cosine_similarities = cosine_similarity(tfidf_matrix[0], tfidf_matrix[1])
+        text_similarity = cosine_similarities[0][0]
+
+    return text_similarity > 0.90 # Adjust the threshold as needed
 
 
 def lazy_parse_patched(self, blob):
@@ -82,24 +123,6 @@ def lazy_parse_patched(self, blob):
 
 FasterWhisperParser.lazy_parse = lazy_parse_patched
 
-
-
-use_paid_services = False
-sys.path.append('../..')
-_ = load_dotenv(find_dotenv()) # read local .env file
-OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
-# OPENAI_API_KEY = os.environ.get('API_KEY_OPEN_AI')
-openai.api_key = OPENAI_API_KEY
-current_dir = Path.cwd()
-current_dir_parent = current_dir.parent
-
-
-result_collection = {
-    'notion_data': None,
-    'pdf_data': None,
-    'web_data': None,
-    'yt_data': None,
-}
 
 def dump_collection(collection: str = 'result_collection.pkl'):
     with open(collection, 'wb') as f:
@@ -163,7 +186,6 @@ def get_youtube(yt_path: Path = current_dir_parent / "data/youtube/url1.url",
             blob_loader=YoutubeAudioLoader([yt_path_str], str(tmp_dir)),
             blob_parser=FasterWhisperParser(device=device)
         )
-        FasterWhisperParser.lazy_parse
         yt_data = yt_loader_faster_whisper.load()
     elif wisper_local:
         yt_loader_whisper_local = GenericLoader(
@@ -174,12 +196,18 @@ def get_youtube(yt_path: Path = current_dir_parent / "data/youtube/url1.url",
     else:
         yt_data = current_collection['yt_data']
 
+    # Compare diff provider
+    openai_res = current_collection['yt_data'][0].page_content
+    local_whisper_res = yt_data[0].page_content
+    assert are_texts_similar(openai_res, local_whisper_res) == True
+
     # print(yt_data)
     result_collection['yt_data'] = yt_data
 
 
 def docs_load():
-    get_youtube(use_paid_services=False, faster_whisper=True, wisper_local=False)
+    # get_youtube(use_paid_services=False, faster_whisper=True, wisper_local=False)
+    get_youtube(use_paid_services=False, faster_whisper=False, wisper_local=True)
     get_notion()
     get_pdf()
     get_web()
