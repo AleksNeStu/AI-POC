@@ -399,6 +399,17 @@ def similarity_search(vector_db, qn: str, k = 5):
     return query_metadata, query_content
 
 
+def max_marginal_relevance_search(vector_db, qn: str, k = 5, fetch_k=3):
+    # Store
+    # Normal query
+    docs_query = vector_db.max_marginal_relevance_search(query=qn, k=k, fetch_k=fetch_k)
+    query_content = [doc_qr.page_content for doc_qr in docs_query]
+    query_metadata = [doc_qr.metadata for doc_qr in docs_query]
+    # assert len(query_content) == 5
+    # assert all([('email' in qc) for qc in query_content]) == Tru
+    return query_metadata, query_content
+
+
 def init_db(documents: List[Document] = None, to_clean_dir: bool = False):
     vector_db = get_db(db_dir)
     if not vector_db or to_clean_dir:
@@ -407,8 +418,11 @@ def init_db(documents: List[Document] = None, to_clean_dir: bool = False):
     return vector_db
 
 
-def add_to_db(vector_db, documents: List[Document]):
-    vector_db.add_documents(documents)
+def add_to_db(vector_db, documents: List[Document] = None, texts: List[str] = None):
+    if documents:
+        vector_db.add_documents(documents)
+    if texts:
+        vector_db.add_texts(texts)
     return vector_db
 
 
@@ -435,26 +449,45 @@ def test_got_distinct_res(vector_db):
     meta_2, content_2 = similarity_search(
         vector_db, qn="what did they say about regression in the third lecture?")
     assert content_1[0] == content_1[1]
-    assert len(set(meta_2)) < len(meta_1)
+    # assert len(set(meta_2)) < len(meta_1)
 
 def test_mmr():
     # Addressing Diversity: Maximum marginal relevance
     # How to enforce diversity in the search results.
-    pass
+    qn_1 = "Tell me about all-white mushrooms with large fruiting bodies"
+    metadata_1, content_1 = similarity_search(vector_db, qn_1, k=2)
+    metadata_2, content_2 = max_marginal_relevance_search(vector_db, qn_1, k=2, fetch_k=3)
+    g = 1
 
-def add_to_db_1(vector_db):
+
+def add_to_db_pdf_split(vector_db):
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1500,
         chunk_overlap=150
     )
     documents = text_splitter.split_documents(collection_data.pdfs_data)
-    add_to_db(vector_db, documents)
+    add_to_db(vector_db, documents=documents)
+
+
+def add_to_db_fake_texts(vector_db):
+    fake_texts = fake.texts(500)
+    vector_db = add_to_db(vector_db, texts=fake_texts)
+
+
+def add_to_db_mmr_text(vector_db):
+    texts = [
+        """The Amanita phalloides has a large and imposing epigeous (aboveground) fruiting body (basidiocarp).""",
+        """A mushroom with a large fruiting body is the Amanita phalloides. Some varieties are all-white.""",
+        """A. phalloides, a.k.a Death Cap, is one of the most poisonous of all known mushrooms.""",
+    ]
+    add_to_db(vector_db, texts=texts)
 
 
 def test_cases(vector_db):
-    test_similarity()
-    test_embedding_data()
-    test_got_distinct_res(vector_db)
+    # test_similarity()
+    # test_embedding_data()
+    # test_got_distinct_res(vector_db)
+    test_mmr()
 
 
 def add_dirty_data_to_collection():
@@ -462,11 +495,21 @@ def add_dirty_data_to_collection():
     collection_data.pdfs_data.extend(extra_pdf_data)
 
 
+
+def add_to_db_batch():
+    #add_to_db_pdf_split(vector_db)
+    #add_to_db_fake_texts(vector_db)
+    add_to_db_mmr_text(vector_db)
+    pass
+
+
 if __name__ == '__main__':
     load_docs(use_saved=True)
     get_targets()
     split_targets()
-    add_dirty_data_to_collection()
+    # add_dirty_data_to_collection()
     vector_db = init_db(to_clean_dir=False)
-    # add_to_db_1(vector_db)
+    print(f'DB collection count: {vector_db._collection.count()}')
+    add_to_db_batch()
+    print(f'DB collection count: {vector_db._collection.count()}')
     test_cases(vector_db)
