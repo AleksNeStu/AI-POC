@@ -394,7 +394,7 @@ def similarity_search(vector_db, qn: str, k = 5):
     docs_query = vector_db.similarity_search(query=qn, k=k)
     query_content = [doc_qr.page_content for doc_qr in docs_query]
     query_metadata = [doc_qr.metadata for doc_qr in docs_query]
-    assert len(query_content) == 5
+    # assert len(query_content) == 5
     # assert all([('email' in qc) for qc in query_content]) == Tru
     return query_metadata, query_content
 
@@ -455,9 +455,12 @@ def test_mmr():
     # Addressing Diversity: Maximum marginal relevance
     # How to enforce diversity in the search results.
     qn_1 = "Tell me about all-white mushrooms with large fruiting bodies"
-    metadata_1, content_1 = similarity_search(vector_db, qn_1, k=2)
-    metadata_2, content_2 = max_marginal_relevance_search(vector_db, qn_1, k=2, fetch_k=3)
-    g = 1
+    metadata_1_1, content_1_1 = similarity_search(vector_db, qn_1, k=2)
+    metadata_1_2, content_1_2 = max_marginal_relevance_search(vector_db, qn_1, k=2, fetch_k=3)
+
+    qn_2 = "what did they say about matlab?"
+    metadata_2_1, content_2_1 = similarity_search(vector_db, qn_2, k=3)
+    metadata_2_2, content_2_2 = max_marginal_relevance_search(vector_db, qn_2, k=3)
 
 
 def add_to_db_pdf_split(vector_db):
@@ -499,7 +502,7 @@ def add_dirty_data_to_collection():
 def add_to_db_batch():
     #add_to_db_pdf_split(vector_db)
     #add_to_db_fake_texts(vector_db)
-    add_to_db_mmr_text(vector_db)
+    # add_to_db_mmr_text(vector_db)
     pass
 
 
