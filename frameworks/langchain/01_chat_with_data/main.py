@@ -368,24 +368,40 @@ def split_targets():
 
 def store_data(documents: List[Document], db_dir: Path = db_dir, to_clean_dir: bool = False):
     db_dir_str = str(db_dir)
-    vectordb = None
+    vector_db = None
     # Save to db
     if to_clean_dir:
         clean_dir(db_dir)
-        vectordb = Chroma.from_documents(
+        vector_db = Chroma.from_documents(
             documents=documents,
             embedding=embedding,
             persist_directory=db_dir_str
         )
 
-    vectordb = Chroma(persist_directory=db_dir_str)
-    assert vectordb._collection.count() == len(documents)
-    return vectordb
+    # ValueError: You must provide an embedding function to compute embeddings.https://docs.trychroma.com/guides/embeddings
+    vector_db = Chroma(persist_directory=db_dir_str, embedding_function=embedding)
+    assert vector_db._collection.count() == len(documents)
+    # LangChainDeprecationWarning: Since Chroma 0.4.x the manual persistence method is no longer supported as docs are automatically persisted.
+    # vector_db.persist()
 
+    return vector_db
+
+
+
+def similarity_search(vector_db, qn: str, k = 5):
+    # Store
+    # Normal query
+    docs_query = vector_db.similarity_search(query=qn, k)
+    query_content = [doc_qr.page_content for doc_qr in docs_query]
+    query_metadata = [doc_qr.metadata for doc_qr in docs_query]
+    assert len(query_content) == 5
+    # assert all([('email' in qc) for qc in query_content]) == Tru
+    return query_metadata, query_content
 
 
 
 def embedding_data():
+    # An embedding function is a function that converts your data (in this case, probably text data) into a numerical vector representation that can be used for similarity comparisons. This is a key part of many machine learning and information retrieval systems.
     fake_left = fake.text(max_nb_chars=199)
     fake_right = fake.text(max_nb_chars=199)
     txt_target_fake = fake_left + txt_target + fake_right
@@ -403,11 +419,18 @@ def embedding_data():
         chunk_overlap = 150
     )
     pdfs_splits = text_splitter.split_documents(collection_data.pdfs_data)
+    vector_db = store_data(documents=pdfs_splits)
 
-    # Store
-    store_db = store_data(documents=pdfs_splits)
-    g = 1
+    # Got relevant and distinct results  due to data duplication by fake data
+    meta_1, content_1 = similarity_search(
+        vector_db, qn="is there an email i can ask for help")
+    assert content_1[0] == content_1[1]
 
+    # Edge cases (duplications)
+    meta_2, content_2 = similarity_search(
+        vector_db, qn="what did they say about regression in the third lecture?")
+    assert content_1[0] == content_1[1]
+    assert len(set(meta_2)) < len(meta_1)
 
 
 
