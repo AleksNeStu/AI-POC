@@ -455,12 +455,17 @@ def test_mmr():
     # Addressing Diversity: Maximum marginal relevance
     # How to enforce diversity in the search results.
     qn_1 = "Tell me about all-white mushrooms with large fruiting bodies"
-    metadata_1_1, content_1_1 = similarity_search(vector_db, qn_1, k=2)
-    metadata_1_2, content_1_2 = max_marginal_relevance_search(vector_db, qn_1, k=2, fetch_k=3)
+    docs_1 = vector_db.similarity_search(qn_1, k=2)
+    docs_mmr_1 = vector_db.max_marginal_relevance_search(qn_1, k=2, fetch_k=3)
 
     qn_2 = "what did they say about matlab?"
-    metadata_2_1, content_2_1 = similarity_search(vector_db, qn_2, k=3)
-    metadata_2_2, content_2_2 = max_marginal_relevance_search(vector_db, qn_2, k=3)
+    docs_2 = vector_db.similarity_search(qn_2, k=3)
+    docs_mmr_2 = vector_db.max_marginal_relevance_search(qn_2, k=3)
+
+    # LLM Aided Retrieval
+    qn_3 = "what did they say about regression in the third lecture?"
+    src_val = str(pdf_dir / "MachineLearning-Lecture03.pdf")
+    docs = vector_db.similarity_search(qn_3, k=3, filter={"source": src_val})
 
 
 def add_to_db_pdf_split(vector_db):
