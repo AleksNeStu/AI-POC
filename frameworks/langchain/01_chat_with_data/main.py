@@ -2,10 +2,14 @@
 import os
 import pickle
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterator, Union, Optional, List
 from dotenv import load_dotenv, find_dotenv
+
+
+# Helpers
+from faker import Faker
 
 # Network
 from yarl import URL
@@ -17,6 +21,7 @@ import torch
 import openai
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
 
 # Langchain Document loaders
 from langchain_community.document_loaders import NotionDirectoryLoader
@@ -47,6 +52,16 @@ from langchain.text_splitter import (
 from langchain_community.document_loaders.blob_loaders import Blob
 from langchain_core.documents import Document
 
+# Langchain embeddings
+# TODO: Test rest of the embeddings
+# from langchain.embeddings import (
+#     HuggingFaceEmbeddings,     # Deprecated
+#     OpenAIEmbeddings,
+#     OpenVINOEmbeddings,
+#     SpacyEmbeddings
+# )
+from langchain_huggingface import HuggingFaceEmbeddings
+
 
 CollectionDataType = Optional[Iterator[Document]]
 CollectionSplitType = Optional[Union[Iterator[Document], str]]
@@ -70,13 +85,16 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 compute_type = "float16" if device == 'cuda' else 'int8'
 nlp_eng = spacy.load('en_core_web_md')
 
+embedding = HuggingFaceEmbeddings()
+fake = Faker()
+
 
 @dataclass
 class CollectionData:
-    notions_data: CollectionDataType = None
-    pdfs_data: CollectionDataType = None
-    webs_data: CollectionDataType = None
-    yts_data: CollectionDataType = None
+    notions_data: CollectionDataType = field(default_factory=list)
+    pdfs_data: CollectionDataType = field(default_factory=list)
+    webs_data: CollectionDataType = field(default_factory=list)
+    yts_data: CollectionDataType = field(default_factory=list)
 
 collection_data = CollectionData()
 
@@ -84,21 +102,24 @@ txt_target, web_md_target, pdf_page_target, notion_md_target = '', '', '', ''
 
 @dataclass
 class CollectionSplit:
-    notions_split: CollectionSplitType = None
-    pdfs_split: CollectionSplitType = None
-    webs_split: CollectionSplitType = None
-    yts_split: CollectionSplitType = None
+    notions_split: CollectionSplitType = field(default_factory=list)
+    pdfs_split: CollectionSplitType = field(default_factory=list)
+    webs_split: CollectionSplitType = field(default_factory=list)
+    yts_split: CollectionSplitType = field(default_factory=list)
 
 
 collection_split = CollectionSplit()
 
 
-def are_texts_similar(text1, text2, use_spacy: bool = True):
+def are_texts_similar(text1, text2, use_spacy: bool = False, use_np: bool = True):
     if use_spacy:
         text1_nlp = nlp_eng(text1)
         text2_nlp = nlp_eng(text2)
         text_similarity = text1_nlp.similarity(text2_nlp)
-
+    elif use_np:
+        text1_em = embedding.embed_query(text1)
+        text2_em = embedding.embed_query(text2)
+        text_similarity = np.dot(text1_em, text2_em)
     else:
         # Vectorize texts
         tfidf_vectorizer = TfidfVectorizer()
@@ -111,7 +132,7 @@ def are_texts_similar(text1, text2, use_spacy: bool = True):
         cosine_similarities = cosine_similarity(tfidf_matrix[0], tfidf_matrix[1])
         text_similarity = cosine_similarities[0][0]
 
-    return text_similarity > 0.90 # Adjust the threshold as needed
+    return text_similarity > 0.99 # Adjust the threshold as needed
 
 
 def lazy_parse_patched(self, blob: Blob) -> Iterator[Document]:
@@ -335,9 +356,29 @@ def split_targets():
     md_header_splits = markdown_splitter.split_text(notion_md_targets_txt)
 
 
+def embedding_data():
+    fake_left = fake.text(max_nb_chars=199)
+    fake_right = fake.text(max_nb_chars=199)
+    txt_target_fake = fake_left + txt_target + fake_right
+    sim_texts = are_texts_similar(txt_target, txt_target_fake)
+    assert sim_texts is False
+
+    txt_target_em = embedding.embed_query(txt_target)
+    web_md_target_em = embedding.embed_query(web_md_target)
+    pdf_page_target_em = embedding.embed_query(pdf_page_target)
+    notion_md_target_em = embedding.embed_query(notion_md_target)
+    g = 1
+
+def add_dirty_data():
+    extra_pdf_data = get_pdf()
+    collection_data.pdfs_data.extend(extra_pdf_data)
+
+
 if __name__ == '__main__':
     load_docs(use_saved=True)
     get_targets()
     split_targets()
+    add_dirty_data()
+
     # store()
-    # embedding()
+    embedding_data()
