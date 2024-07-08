@@ -24,6 +24,11 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
+# LLM
+# from langchain.llms import OpenAI
+from langchain_openai import OpenAI
+from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline
+
 # Langchain Document loaders
 from langchain_community.document_loaders import NotionDirectoryLoader
 from langchain_community.document_loaders import PyPDFLoader, PyPDFDirectoryLoader
@@ -69,6 +74,11 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 
 
+# Langchain helpers
+from langchain.retrievers.self_query.base import SelfQueryRetriever
+from langchain.chains.query_constructor.base import AttributeInfo
+
+
 CollectionDataType = Optional[Iterator[Document]]
 CollectionSplitType = Optional[Union[Iterator[Document], str]]
 
@@ -76,6 +86,7 @@ use_paid_services = False
 sys.path.append('../..')
 _ = load_dotenv(find_dotenv()) # read local .env file
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
+API_KEY_HUGGING_FACE = os.environ.get('API_KEY_HUGGING_FACE')
 # OPENAI_API_KEY = os.environ.get('API_KEY_OPEN_AI')
 openai.api_key = OPENAI_API_KEY
 current_dir = Path.cwd()
@@ -85,6 +96,11 @@ pdf_dir = current_dir_parent / 'data/docs/pdf/'
 tmp_dir = current_dir_parent / "tmp"
 db_dir = current_dir_parent / 'db'
 
+pdf_1_path = pdf_dir / "MachineLearning-Lecture01.pdf"
+pdf_2_path = pdf_dir / "MachineLearning-Lecture02.pdf"
+pdf_3_path = pdf_dir / "MachineLearning-Lecture03.pdf"
+
+
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 # You can set compute_type to "float32" or "int8".
 # Since your GPU does not support float16, you should set "int8" and not "int8_float16".
@@ -92,6 +108,7 @@ compute_type = "float16" if device == 'cuda' else 'int8'
 nlp_eng = spacy.load('en_core_web_md')
 
 embedding = HuggingFaceEmbeddings()
+# embedding = HuggingFaceEmbeddings(model_name="mixedbread-ai/mxbai-embed-large-v1")
 fake = Faker()
 
 
@@ -223,7 +240,7 @@ def get_notions(notions_path: Path = md_dir):
     return notions_data
 
 # PDF
-def get_pdf(pdf_path: Path = pdf_dir / "MachineLearning-Lecture01.pdf"):
+def get_pdf(pdf_path: Path = pdf_1_path):
     pdf_loader = PyPDFLoader(str(pdf_path))
     pdf_data = pdf_loader.load()
     # page = pdf_data[3]
@@ -410,6 +427,7 @@ def max_marginal_relevance_search(vector_db, qn: str, k = 5, fetch_k=3):
     return query_metadata, query_content
 
 
+# TODO: Test https://github.com/chroma-core/chroma
 def init_db(documents: List[Document] = None, to_clean_dir: bool = False):
     vector_db = get_db(db_dir)
     if not vector_db or to_clean_dir:
@@ -426,14 +444,14 @@ def add_to_db(vector_db, documents: List[Document] = None, texts: List[str] = No
     return vector_db
 
 
-def test_embedding_data():
+def test_embedding_data(vector_db):
     # An embedding function is a function that converts your data (in this case, probably text data) into a numerical vector representation that can be used for similarity comparisons. This is a key part of many machine learning and information retrieval systems.
     txt_target_em = embedding.embed_query(txt_target)
     web_md_target_em = embedding.embed_query(web_md_target)
     pdf_page_target_em = embedding.embed_query(pdf_page_target)
     notion_md_target_em = embedding.embed_query(notion_md_target)
 
-def test_similarity():
+def test_similarity(vector_db):
     fake_left = fake.text(max_nb_chars=199)
     fake_right = fake.text(max_nb_chars=199)
     txt_target_fake = fake_left + txt_target + fake_right
@@ -451,7 +469,7 @@ def test_got_distinct_res(vector_db):
     assert content_1[0] == content_1[1]
     # assert len(set(meta_2)) < len(meta_1)
 
-def test_mmr():
+def test_mmr(vector_db):
     # Addressing Diversity: Maximum marginal relevance
     # How to enforce diversity in the search results.
     qn_1 = "Tell me about all-white mushrooms with large fruiting bodies"
@@ -461,11 +479,107 @@ def test_mmr():
     qn_2 = "what did they say about matlab?"
     docs_2 = vector_db.similarity_search(qn_2, k=3)
     docs_mmr_2 = vector_db.max_marginal_relevance_search(qn_2, k=3)
+    # MMR is a method used to avoid redundancy while retrieving relevant items to a query. Instead of merely retrieving the most relevant items (which can often be very similar to each other), MMR ensures a balance between relevancy and diversity in the items retrieved.
 
-    # LLM Aided Retrieval
+def test_filter_and_self_query_retriever(vector_db, run_qr: bool = False):
+    # LLM Aided Retrieval (Working with metadata)
     qn_3 = "what did they say about regression in the third lecture?"
-    src_val = str(pdf_dir / "MachineLearning-Lecture03.pdf")
-    docs = vector_db.similarity_search(qn_3, k=3, filter={"source": src_val})
+    src_val = str(pdf_3_path)
+    docs_filter_3_1 = vector_db.similarity_search(qn_3, k=3, filter={"source": src_val})
+    docs_filter_3_2 = vector_db.similarity_search(qn_3, k=3, filter={"page": 7})
+
+    # TODO: Test other LLMs
+    # Time consuming op on CPU and laptops
+    if run_qr:
+        # Compression LLM: Increase the number of results you can put in the
+        # context by shrinking the responses to only the relevant Information.
+        # Working with metadata using self-query retriever
+        # To address this, we can use SelfQueryRetriever, which uses an LLM to extract:
+        # The query string to use for vector search
+        # A metadata filter to pass in as well
+        metadata_field_info = [
+            AttributeInfo(
+                name="source",
+                description=(
+                    f"The lecture the chunk is from, should be one of "
+                    f"`{str(pdf_1_path)}`, `{str(pdf_2_path)}`, or `{str(pdf_3_path)}`"),
+                type="string",
+            ),
+            AttributeInfo(
+                name="page",
+                description="The page from the lecture",
+                type="integer",
+            ),
+        ]
+        # **Note:** The default model for `OpenAI` ("from langchain.llms import OpenAI") is `text-davinci-003`.
+        # Due to the deprication of OpenAI's model `text-davinci-003` on 4 January 2024, you'll be using OpenAI's
+        # recommended replacement model `gpt-3.5-turbo-instruct` instead.
+        document_content_description = "Lecture notes"
+
+        # llm = OpenAI(model='gpt-3.5-turbo-instruct', temperature=0)
+
+        # https://huggingface.co/blog/langchain
+        # https://api.python.langchain.com/en/latest/llms/langchain_community.llms.huggingface_pipeline.HuggingFacePipeline.html
+        # https://huggingface.co/models
+
+
+        # llm = HuggingFacePipeline.from_model_id(
+        #     # model_id="microsoft/Phi-3-mini-4k-instruct",
+        #     model_id="gpt2",
+        #     task="text-generation",
+        #     pipeline_kwargs={
+        #         'max_length': 2500,
+        #         # "max_new_tokens": 10000,
+        #         # "temperature": 0,
+        #     },
+        #     # huggingfacehub_api_token=API_KEY_HUGGING_FACE,
+        #     # token=API_KEY_HUGGING_FACE
+        # )
+
+
+        # ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
+        # ov_llm = HuggingFacePipeline.from_model_id(
+        #     model_id="gpt2",
+        #     task="text-generation",
+        #     # backend="openvino",
+        #     # model_kwargs={"device": "CPU", "ov_config": ov_config},
+        #     pipeline_kwargs={"max_new_tokens": 10},
+        # )
+
+
+        llm = HuggingFacePipeline.from_model_id(
+            model_id="microsoft/Phi-3-mini-4k-instruct",
+            task="text-generation",
+            pipeline_kwargs={
+                "max_new_tokens": 1500,
+                # "top_k": 50,
+                # "temperature": 0.1,
+                'do_sample': False
+            },
+        )
+        # Option 1: Use this if you want the generation to involve some randomness, controlled by the temperature parameter.
+        # do_sample=True,  # Enable sampling
+        # temperature=0.1,  # Set the temperature for sampling
+
+        # Option 2: Use this if you prefer deterministic generation without randomness.
+        # do_sample=False,  # Ensure sampling is disabled
+
+
+        # """Retriever that uses a vector store and an LLM to generate the vector store queries."""
+        retriever = SelfQueryRetriever.from_llm(
+            llm=llm,
+            vectorstore=vector_db,
+            document_contents=document_content_description,
+            metadata_field_info=metadata_field_info,
+            verbose=True
+        )
+        # ValueError: Input length of input_ids is 1340, but `max_length` is set to 50. This can lead to unexpected behavior. You should consider increasing `max_length` or, better yet, setting `max_new_tokens`.
+        qn_4 = "what did they say about regression in the third lecture?"
+
+        # docs_4 = retriever.get_relevant_documents(qn_4) - Deprecated
+        docs_4 = retriever.invoke(qn_4, prompt_text='test')
+        # docs_meta_4 = [i for i in docs_4]
+        g = 1
 
 
 def add_to_db_pdf_split(vector_db):
@@ -478,7 +592,7 @@ def add_to_db_pdf_split(vector_db):
 
 
 def add_to_db_fake_texts(vector_db):
-    fake_texts = fake.texts(500)
+    fake_texts = fake.texts(200)
     vector_db = add_to_db(vector_db, texts=fake_texts)
 
 
@@ -492,10 +606,11 @@ def add_to_db_mmr_text(vector_db):
 
 
 def test_cases(vector_db):
-    # test_similarity()
-    # test_embedding_data()
+    # test_similarity(vector_db)
+    # test_embedding_data(vector_db)
     # test_got_distinct_res(vector_db)
-    test_mmr()
+    # test_mmr(vector_db)
+    test_filter_and_self_query_retriever(vector_db)
 
 
 def add_dirty_data_to_collection():
@@ -505,8 +620,8 @@ def add_dirty_data_to_collection():
 
 
 def add_to_db_batch():
-    #add_to_db_pdf_split(vector_db)
-    #add_to_db_fake_texts(vector_db)
+    # add_to_db_pdf_split(vector_db)
+    # add_to_db_fake_texts(vector_db)
     # add_to_db_mmr_text(vector_db)
     pass
 

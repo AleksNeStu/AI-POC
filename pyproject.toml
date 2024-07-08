@@ -46,6 +46,11 @@ faster-whisper = "^1.0.3"
 spacy = "^3.7.5"
 faker = "^26.0.0"
 langchain-huggingface = "^0.0.3"
+langchain-openai = "^0.1.14"
+lark = "^1.1.9"
+optimum = "^1.21.2"
+openvino = "^2024.2.0"
+nncf = "^2.11.0"
 
 
 [tool.poetry.group.dev.dependencies]
