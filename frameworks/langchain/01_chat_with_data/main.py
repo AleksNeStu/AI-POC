@@ -366,7 +366,7 @@ def split_targets():
     md_header_splits = markdown_splitter.split_text(notion_md_targets_txt)
 
 
-def store_data(documents: List[Document], db_dir: Path = db_dir, to_clean_dir: bool = False):
+def create_and_store_db(documents: List[Document], db_dir: Path = db_dir, to_clean_dir: bool = False):
     db_dir_str = str(db_dir)
     vector_db = None
     # Save to db
@@ -387,11 +387,10 @@ def store_data(documents: List[Document], db_dir: Path = db_dir, to_clean_dir: b
     return vector_db
 
 
-
 def similarity_search(vector_db, qn: str, k = 5):
     # Store
     # Normal query
-    docs_query = vector_db.similarity_search(query=qn, k)
+    docs_query = vector_db.similarity_search(query=qn, k=k)
     query_content = [doc_qr.page_content for doc_qr in docs_query]
     query_metadata = [doc_qr.metadata for doc_qr in docs_query]
     assert len(query_content) == 5
@@ -399,42 +398,55 @@ def similarity_search(vector_db, qn: str, k = 5):
     return query_metadata, query_content
 
 
+def init_db(documents: List[Document] = None, to_clean_dir: bool = False):
+    if not documents:
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1500,
+            chunk_overlap=150
+        )
+        documents = text_splitter.split_documents(collection_data.pdfs_data)
 
-def embedding_data():
+    vector_db = create_and_store_db(documents=documents)
+    return vector_db
+
+
+def add_to_db(vector_db, documents: List[Document]):
+    vector_db.add_documents(documents)
+    return vector_db
+
+
+def test_embedding_data():
     # An embedding function is a function that converts your data (in this case, probably text data) into a numerical vector representation that can be used for similarity comparisons. This is a key part of many machine learning and information retrieval systems.
+    txt_target_em = embedding.embed_query(txt_target)
+    web_md_target_em = embedding.embed_query(web_md_target)
+    pdf_page_target_em = embedding.embed_query(pdf_page_target)
+    notion_md_target_em = embedding.embed_query(notion_md_target)
+
+def test_similarity():
     fake_left = fake.text(max_nb_chars=199)
     fake_right = fake.text(max_nb_chars=199)
     txt_target_fake = fake_left + txt_target + fake_right
     sim_texts = are_texts_similar(txt_target, txt_target_fake)
     assert sim_texts == False
 
-    txt_target_em = embedding.embed_query(txt_target)
-    web_md_target_em = embedding.embed_query(web_md_target)
-    pdf_page_target_em = embedding.embed_query(pdf_page_target)
-    notion_md_target_em = embedding.embed_query(notion_md_target)
-
-    # Split docs
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size = 1500,
-        chunk_overlap = 150
-    )
-    pdfs_splits = text_splitter.split_documents(collection_data.pdfs_data)
-    vector_db = store_data(documents=pdfs_splits)
-
+def test_got_distinct_res(vector_db):
     # Got relevant and distinct results  due to data duplication by fake data
     meta_1, content_1 = similarity_search(
         vector_db, qn="is there an email i can ask for help")
     assert content_1[0] == content_1[1]
-
     # Edge cases (duplications)
     meta_2, content_2 = similarity_search(
         vector_db, qn="what did they say about regression in the third lecture?")
     assert content_1[0] == content_1[1]
     assert len(set(meta_2)) < len(meta_1)
 
+def test_cases(vector_db):
+    test_similarity()
+    test_embedding_data()
+    test_got_distinct_res(vector_db)
 
 
-def add_dirty_data():
+def add_dirty_data_to_collection():
     extra_pdf_data = get_pdf()
     collection_data.pdfs_data.extend(extra_pdf_data)
 
@@ -443,5 +455,7 @@ if __name__ == '__main__':
     load_docs(use_saved=True)
     get_targets()
     split_targets()
-    add_dirty_data()
-    embedding_data()
+    add_dirty_data_to_collection()
+    vector_db = init_db()
+    add_to_db(vector_db, collection_data.pdfs_data)
+    test_cases(vector_db)
