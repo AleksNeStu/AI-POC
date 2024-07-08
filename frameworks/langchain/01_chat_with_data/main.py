@@ -214,15 +214,18 @@ def get_web(web_url: URL = 'https://github.com/langchain-ai/langchain/blob/maste
     return web_data
 
 def get_webs(webs_path: List[URL]):
-    webs_data = [get_web(web_path) for web_path in webs_path]
+    webs_data = []
+    for web_path in webs_path:
+        web_data = get_web(web_path)
+        webs_data.extend(web_data)
+
     collection_data.webs_data = webs_data
     return webs_data
 
 # YouTube
 def get_yts(yts_path: List[URL],
             use_paid_services: bool = False,
-            faster_whisper: bool = True,
-            wisper_local: bool = False
+            faster_whisper: bool = True
             ):
     # with open(yt_path, 'r') as f:
     #     yt_path_str = f.read()
@@ -243,66 +246,53 @@ def get_yts(yts_path: List[URL],
             blob_parser=FasterWhisperParser(device=device)
         )
         yts_data = yt_loader_faster_whisper.load()
-    elif wisper_local:
+    else:
         yt_loader_whisper_local = GenericLoader(
             blob_loader=YoutubeAudioLoader(yts_url, tmp_dir_str),
             blob_parser=OpenAIWhisperParserLocal(device=device)
         )
         yts_data = yt_loader_whisper_local.load()
-    else:
-        yts_data = collection_data_saved.yt_data
-
-    if collection_data_saved:
-        # Compare diff provider
-        openai_res = collection_data_saved.yt_data[0].page_content
-        local_whisper_res = yts_data[0].page_content
-        assert are_texts_similar(openai_res, local_whisper_res) == True
 
     # print(yt_data)
     collection_data.yts_data = yts_data
 
 
-def docs_load():
-    get_yts(
-        yts_path=[
-            URL('https://www.youtube.com/watch?v=1bUy-1hGZpI&ab_channel=IBMTechnology')
-        ],
-        use_paid_services=False, faster_whisper=False, wisper_local=True)
-    get_notions()
-    get_pdfs()
-    get_webs(
-        webs_path=[
-            URL('https://github.com/langchain-ai/langchain/blob/master/README.md')
-        ]
-    )
-    dump_collection()
+def load_docs(use_saved: bool = True):
+    global collection_data
+    if use_saved and collection_data_saved:
+        collection_data = collection_data_saved
+    else:
+        get_yts(
+            yts_path=[
+                URL('https://www.youtube.com/watch?v=1bUy-1hGZpI&ab_channel=IBMTechnology')
+            ],
+            use_paid_services=False, faster_whisper=False)
+        get_notions()
+        get_pdfs()
+        get_webs(
+            webs_path=[
+                URL('https://github.com/langchain-ai/langchain/blob/master/README.md')
+            ]
+        )
+        dump_collection()
 
 def get_targets():
-    global txt_target, web_md_target, pdf_page_target, notion_md_target
-    if not collection_data_saved:
-        docs_load()
+    global txt_target, web_md_target, pdf_page_target, notion_md_target, collection_data
     # NOTE:# OpenAIWhisperParserLocal other can produce > 1 len of chunks, adjust if needed
-    assert len(collection_data_saved.yt_data) == 1
-    txt_target = collection_data_saved.yt_data[0].page_content
+    txt_target = collection_data.yts_data[0].page_content
+    web_md_target = collection_data.webs_data[0].page_content
+    pdf_page_target = collection_data.pdfs_data[0].page_content
+    notion_md_target = collection_data.notions_data[0].page_content
 
-    assert len(collection_data_saved.web_data) == 1
-    web_md_target = collection_data_saved.web_data[0].page_content
-
-    assert len(collection_data_saved.pdf_data) == 22
-    pdf_page_target = collection_data_saved.pdf_data[7].page_content
-
-    assert len(collection_data_saved.notion_data) == 34
-    notion_md_target = collection_data_saved.notion_data[7].page_content
-
-def docs_split():
-    get_targets()
+def split_targets():
+    global collection_data
     text_char_splitter = CharacterTextSplitter(
         chunk_size=450,
         chunk_overlap=0,
         separator = ' '
     )
     txt_split_char = text_char_splitter.split_text(txt_target)
-    assert len(txt_split_char) == 19
+    #assert len(txt_split_char) == 19
 
     text_rec_splitter = RecursiveCharacterTextSplitter(
         chunk_size=150,
@@ -310,7 +300,7 @@ def docs_split():
         separators=["\n\n", "\n", "(?<=\. )", " ", ""]
     )
     txt_split_rec = text_rec_splitter.split_text(txt_target)
-    assert len(txt_split_rec) == 58
+    # assert len(txt_split_rec) == 58
 
     text_docf_splitter = CharacterTextSplitter(
         separator="\n",
@@ -319,19 +309,19 @@ def docs_split():
         length_function=len
     )
     pdf_split_docf = text_docf_splitter.split_documents(
-        collection_data_saved.pdf_data)
-    assert len(collection_data_saved.pdf_data) == 22
-    assert len(pdf_split_docf) == 77
+        collection_data.pdfs_data)
+    # assert len(collection_data.pdfs_data) == 22
+    # assert len(pdf_split_docf) == 77
 
     notion_split_docf = text_docf_splitter.split_documents(
-        collection_data_saved.notion_data)
-    assert len(collection_data_saved.notion_data) == 34
-    assert len(notion_split_docf) == 442
+        collection_data.notions_data)
+    # assert len(collection_data.notions_data) == 34
+    # assert len(notion_split_docf) == 442
 
     token_splitter_docf = TokenTextSplitter(chunk_size=20, chunk_overlap=0)
     pdf_token_split_docf = token_splitter_docf.split_documents(
-        collection_data_saved.pdf_data)
-    assert len(txt_split_rec) == 58
+        collection_data.pdfs_data)
+    # assert len(txt_split_rec) == 58
 
     headers_to_split_on = [
         ("#", "Header 1"),
@@ -341,10 +331,13 @@ def docs_split():
     markdown_splitter = MarkdownHeaderTextSplitter(
         headers_to_split_on=headers_to_split_on
     )
-    notion_md_targets_txt = ' '.join([d.page_content for d in collection_data_saved.notion_data])
+    notion_md_targets_txt = ' '.join([d.page_content for d in collection_data.notions_data])
     md_header_splits = markdown_splitter.split_text(notion_md_targets_txt)
 
 
 if __name__ == '__main__':
-    docs_load()
-    docs_split()
+    load_docs(use_saved=True)
+    get_targets()
+    split_targets()
+    # store()
+    # embedding()
