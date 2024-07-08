@@ -10,6 +10,7 @@ from dotenv import load_dotenv, find_dotenv
 
 # Helpers
 from faker import Faker
+import shutil
 
 # Network
 from yarl import URL
@@ -63,6 +64,11 @@ from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
 
 
+# Langchain store
+# TODO: Test rest
+from langchain_community.vectorstores import Chroma
+
+
 CollectionDataType = Optional[Iterator[Document]]
 CollectionSplitType = Optional[Union[Iterator[Document], str]]
 
@@ -77,7 +83,7 @@ current_dir_parent = current_dir.parent
 md_dir = current_dir_parent / 'data/docs/md'
 pdf_dir = current_dir_parent / 'data/docs/pdf/'
 tmp_dir = current_dir_parent / "tmp"
-
+db_dir = current_dir_parent / 'db'
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 # You can set compute_type to "float32" or "int8".
@@ -109,6 +115,10 @@ class CollectionSplit:
 
 
 collection_split = CollectionSplit()
+
+
+def clean_dir(dir_path: Path):
+    shutil.rmtree(str(dir_path))
 
 
 def are_texts_similar(text1, text2, use_spacy: bool = False, use_np: bool = True):
@@ -356,18 +366,43 @@ def split_targets():
     md_header_splits = markdown_splitter.split_text(notion_md_targets_txt)
 
 
+def store_data(documents: List[Document], db_dir: Path = db_dir):
+    # Save to db
+    clean_dir(db_dir)
+    vectordb = Chroma.from_documents(
+        documents=documents,
+        embedding=embedding,
+        persist_directory=str(db_dir)
+    )
+    return vectordb
+
+
+
 def embedding_data():
     fake_left = fake.text(max_nb_chars=199)
     fake_right = fake.text(max_nb_chars=199)
     txt_target_fake = fake_left + txt_target + fake_right
     sim_texts = are_texts_similar(txt_target, txt_target_fake)
-    assert sim_texts is False
+    assert sim_texts == False
 
     txt_target_em = embedding.embed_query(txt_target)
     web_md_target_em = embedding.embed_query(web_md_target)
     pdf_page_target_em = embedding.embed_query(pdf_page_target)
     notion_md_target_em = embedding.embed_query(notion_md_target)
-    g = 1
+
+    # Split docs
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size = 1500,
+        chunk_overlap = 150
+    )
+    pdfs_splits = text_splitter.split_documents(collection_data.pdfs_data)
+
+    # Store
+    store_db = store_data(documents=pdfs_splits)
+    f = 1
+
+
+
 
 def add_dirty_data():
     extra_pdf_data = get_pdf()
@@ -379,6 +414,4 @@ if __name__ == '__main__':
     get_targets()
     split_targets()
     add_dirty_data()
-
-    # store()
     embedding_data()
