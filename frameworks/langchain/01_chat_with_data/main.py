@@ -4,8 +4,11 @@ import pickle
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator, Union, Optional
+from typing import Iterator, Union, Optional, List
 from dotenv import load_dotenv, find_dotenv
+
+# Network
+from yarl import URL
 
 # ML
 # python -m spacy download en_core_web_md
@@ -17,7 +20,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 # Langchain Document loaders
 from langchain_community.document_loaders import NotionDirectoryLoader
-from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyPDFLoader, PyPDFDirectoryLoader
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_community.document_loaders import YoutubeAudioLoader
 from langchain_community.document_loaders.generic import GenericLoader
@@ -56,6 +59,9 @@ OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 openai.api_key = OPENAI_API_KEY
 current_dir = Path.cwd()
 current_dir_parent = current_dir.parent
+md_dir = current_dir_parent / 'data/docs/md'
+pdf_dir = current_dir_parent / 'data/docs/pdf/'
+tmp_dir = current_dir_parent / "tmp"
 
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -67,10 +73,10 @@ nlp_eng = spacy.load('en_core_web_md')
 
 @dataclass
 class CollectionData:
-    notion_data: CollectionDataType = None
-    pdf_data: CollectionDataType = None
-    web_data: CollectionDataType = None
-    yt_data: CollectionDataType = None
+    notions_data: CollectionDataType = None
+    pdfs_data: CollectionDataType = None
+    webs_data: CollectionDataType = None
+    yts_data: CollectionDataType = None
 
 collection_data = CollectionData()
 
@@ -78,10 +84,10 @@ txt_target, web_md_target, pdf_page_target, notion_md_target = '', '', '', ''
 
 @dataclass
 class CollectionSplit:
-    notion_split: CollectionSplitType = None
-    pdf_split: CollectionSplitType = None
-    web_split: CollectionSplitType = None
-    yt_split: CollectionSplitType = None
+    notions_split: CollectionSplitType = None
+    pdfs_split: CollectionSplitType = None
+    webs_split: CollectionSplitType = None
+    yts_split: CollectionSplitType = None
 
 
 collection_split = CollectionSplit()
@@ -178,85 +184,98 @@ collection_data_saved = load_collection('collection_data') if (current_dir / 'co
 collection_split_saved = load_collection('collection_split') if (current_dir / 'collection_split.pkl').exists() else None
 
 # Notion
-def get_notion(notion_path: Path = current_dir_parent / "data/docs/md"):
-    notion_loader = NotionDirectoryLoader(str(notion_path))
-    notion_data = notion_loader.load()
-    notion_meta = notion_data[0].metadata
-    # print(notion_meta)
-    collection_data.notion_data = notion_data
-    return notion_data
+def get_notions(notions_path: Path = md_dir):
+    notions_loader = NotionDirectoryLoader(str(notions_path))
+    notions_data = notions_loader.load()
+    # print(notions_data[0].metadata)
+    collection_data.notions_data = notions_data
+    return notions_data
 
 # PDF
-def get_pdf(pdf_path: Path = current_dir_parent / "data/docs/pdf/MachineLearning-Lecture01.pdf"):
+def get_pdf(pdf_path: Path = pdf_dir / "MachineLearning-Lecture01.pdf"):
     pdf_loader = PyPDFLoader(str(pdf_path))
     pdf_data = pdf_loader.load()
-    assert len(pdf_data) == 22
-    page = pdf_data[3]
+    # page = pdf_data[3]
     # print(page.page_content[:100])
     # print(page.metadata)
-    collection_data.pdf_data = pdf_data
     return pdf_data
 
+def get_pdfs(pdfs_path: Path = pdf_dir):
+    pdfs_loader = PyPDFDirectoryLoader(str(pdfs_path))
+    pdfs_data = pdfs_loader.load()
+    collection_data.pdfs_data = pdfs_data
+    return pdfs_data
+
 # URLs (web data)
-def get_web(md_url: str = 'https://github.com/langchain-ai/langchain/blob/master/README.md'):
-    web_loader = WebBaseLoader(md_url)
+def get_web(web_url: URL = 'https://github.com/langchain-ai/langchain/blob/master/README.md'):
+    web_loader = WebBaseLoader(str(web_url))
     web_data = web_loader.load()
-    web_data_snippet = web_data[0].page_content[500:600]
-    collection_data.web_data = web_data
-    # print(web_data_snippet)
+    # print( web_data[0].page_content[500:600])
     return web_data
 
-# YouTube
-def get_youtube(yt_path: Path = current_dir_parent / "data/youtube/url1.url",
-                use_paid_services: bool = False,
-                faster_whisper: bool = True,
-                wisper_local: bool = False
-                ):
-    with open(yt_path, 'r') as f:
-        yt_path_str = f.read()
+def get_webs(webs_path: List[URL]):
+    webs_data = [get_web(web_path) for web_path in webs_path]
+    collection_data.webs_data = webs_data
+    return webs_data
 
-    tmp_dir = current_dir_parent / "tmp"
-    yt_data = None
+# YouTube
+def get_yts(yts_path: List[URL],
+            use_paid_services: bool = False,
+            faster_whisper: bool = True,
+            wisper_local: bool = False
+            ):
+    # with open(yt_path, 'r') as f:
+    #     yt_path_str = f.read()
+    yts_data = None
+    yts_url = [str(yt_path) for yt_path in yts_path]
+    tmp_dir_str = str(tmp_dir)
     if use_paid_services:
         yt_loader_whisper = GenericLoader(
-            blob_loader=YoutubeAudioLoader([yt_path_str], str(tmp_dir)),
+            blob_loader=YoutubeAudioLoader(yts_url, tmp_dir_str),
             blob_parser=OpenAIWhisperParser(api_key=OPENAI_API_KEY)
         )
         blob_parser = YandexSTTParser  #TODO: Test and extend the function
-        yt_data = yt_loader_whisper.load()
+        yts_data = yt_loader_whisper.load()
     elif faster_whisper:
         # https://api.python.langchain.com/en/latest/document_loaders/langchain_community.document_loaders.parsers.audio.FasterWhisperParser.html
         yt_loader_faster_whisper = GenericLoader(
-            blob_loader=YoutubeAudioLoader([yt_path_str], str(tmp_dir)),
+            blob_loader=YoutubeAudioLoader(yts_url, tmp_dir_str),
             blob_parser=FasterWhisperParser(device=device)
         )
-        yt_data = yt_loader_faster_whisper.load()
+        yts_data = yt_loader_faster_whisper.load()
     elif wisper_local:
         yt_loader_whisper_local = GenericLoader(
-            blob_loader=YoutubeAudioLoader([yt_path_str], str(tmp_dir)),
+            blob_loader=YoutubeAudioLoader(yts_url, tmp_dir_str),
             blob_parser=OpenAIWhisperParserLocal(device=device)
         )
-        yt_data = yt_loader_whisper_local.load()
+        yts_data = yt_loader_whisper_local.load()
     else:
-        yt_data = collection_data_saved.yt_data
+        yts_data = collection_data_saved.yt_data
 
     if collection_data_saved:
         # Compare diff provider
         openai_res = collection_data_saved.yt_data[0].page_content
-        local_whisper_res = yt_data[0].page_content
+        local_whisper_res = yts_data[0].page_content
         assert are_texts_similar(openai_res, local_whisper_res) == True
 
     # print(yt_data)
-    collection_data.yt_data = yt_data
+    collection_data.yts_data = yts_data
 
 
 def docs_load():
-    # get_youtube(use_paid_services=False, faster_whisper=True, wisper_local=False)
-    get_youtube(use_paid_services=False, faster_whisper=False, wisper_local=True)
-    get_notion()
-    get_pdf()
-    get_web()
-    # dump_collection()
+    get_yts(
+        yts_path=[
+            URL('https://www.youtube.com/watch?v=1bUy-1hGZpI&ab_channel=IBMTechnology')
+        ],
+        use_paid_services=False, faster_whisper=False, wisper_local=True)
+    get_notions()
+    get_pdfs()
+    get_webs(
+        webs_path=[
+            URL('https://github.com/langchain-ai/langchain/blob/master/README.md')
+        ]
+    )
+    dump_collection()
 
 def get_targets():
     global txt_target, web_md_target, pdf_page_target, notion_md_target
@@ -327,5 +346,5 @@ def docs_split():
 
 
 if __name__ == '__main__':
-    # docs_load()
+    docs_load()
     docs_split()
