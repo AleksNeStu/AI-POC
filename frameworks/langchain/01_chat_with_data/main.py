@@ -365,24 +365,25 @@ def split_targets():
     notion_md_targets_txt = ' '.join([d.page_content for d in collection_data.notions_data])
     md_header_splits = markdown_splitter.split_text(notion_md_targets_txt)
 
-
-def create_and_store_db(documents: List[Document], db_dir: Path = db_dir, to_clean_dir: bool = False):
+def get_db(db_dir: Path = db_dir):
     db_dir_str = str(db_dir)
-    vector_db = None
-    # Save to db
-    if to_clean_dir:
-        clean_dir(db_dir)
-        vector_db = Chroma.from_documents(
-            documents=documents,
-            embedding=embedding,
-            persist_directory=db_dir_str
-        )
+    if db_dir.exists() and (db_dir / 'chroma.sqlite3').exists():
+        vector_db = Chroma(persist_directory=db_dir_str, embedding_function=embedding)
+        return vector_db
 
-    # ValueError: You must provide an embedding function to compute embeddings.https://docs.trychroma.com/guides/embeddings
-    vector_db = Chroma(persist_directory=db_dir_str, embedding_function=embedding)
-    assert vector_db._collection.count() == len(documents)
-    # LangChainDeprecationWarning: Since Chroma 0.4.x the manual persistence method is no longer supported as docs are automatically persisted.
-    # vector_db.persist()
+
+def create_db(db_dir: Path = db_dir, to_clean_dir: bool = False,
+              documents: List[Document] = None):
+    # Save to db
+    vector_db = None
+    db_dir_str = str(db_dir)
+    if to_clean_dir and db_dir.exists():
+        clean_dir(db_dir)
+
+    if documents:
+        vector_db = Chroma.from_documents(embedding=embedding, persist_directory=db_dir_str, documents=documents)
+    else:
+        vector_db = Chroma(persist_directory=db_dir_str, embedding_function=embedding)
 
     return vector_db
 
@@ -399,14 +400,10 @@ def similarity_search(vector_db, qn: str, k = 5):
 
 
 def init_db(documents: List[Document] = None, to_clean_dir: bool = False):
-    if not documents:
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1500,
-            chunk_overlap=150
-        )
-        documents = text_splitter.split_documents(collection_data.pdfs_data)
+    vector_db = get_db(db_dir)
+    if not vector_db or to_clean_dir:
+        vector_db = create_db(documents=documents, to_clean_dir=to_clean_dir)
 
-    vector_db = create_and_store_db(documents=documents)
     return vector_db
 
 
@@ -440,6 +437,20 @@ def test_got_distinct_res(vector_db):
     assert content_1[0] == content_1[1]
     assert len(set(meta_2)) < len(meta_1)
 
+def test_mmr():
+    # Addressing Diversity: Maximum marginal relevance
+    # How to enforce diversity in the search results.
+    pass
+
+def add_to_db_1(vector_db):
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1500,
+        chunk_overlap=150
+    )
+    documents = text_splitter.split_documents(collection_data.pdfs_data)
+    add_to_db(vector_db, documents)
+
+
 def test_cases(vector_db):
     test_similarity()
     test_embedding_data()
@@ -456,6 +467,6 @@ if __name__ == '__main__':
     get_targets()
     split_targets()
     add_dirty_data_to_collection()
-    vector_db = init_db()
-    add_to_db(vector_db, collection_data.pdfs_data)
+    vector_db = init_db(to_clean_dir=False)
+    # add_to_db_1(vector_db)
     test_cases(vector_db)
