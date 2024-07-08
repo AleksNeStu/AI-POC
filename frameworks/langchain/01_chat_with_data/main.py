@@ -366,15 +366,22 @@ def split_targets():
     md_header_splits = markdown_splitter.split_text(notion_md_targets_txt)
 
 
-def store_data(documents: List[Document], db_dir: Path = db_dir):
+def store_data(documents: List[Document], db_dir: Path = db_dir, to_clean_dir: bool = False):
+    db_dir_str = str(db_dir)
+    vectordb = None
     # Save to db
-    clean_dir(db_dir)
-    vectordb = Chroma.from_documents(
-        documents=documents,
-        embedding=embedding,
-        persist_directory=str(db_dir)
-    )
+    if to_clean_dir:
+        clean_dir(db_dir)
+        vectordb = Chroma.from_documents(
+            documents=documents,
+            embedding=embedding,
+            persist_directory=db_dir_str
+        )
+
+    vectordb = Chroma(persist_directory=db_dir_str)
+    assert vectordb._collection.count() == len(documents)
     return vectordb
+
 
 
 
@@ -399,7 +406,7 @@ def embedding_data():
 
     # Store
     store_db = store_data(documents=pdfs_splits)
-    f = 1
+    g = 1
 
 
 
