@@ -75,7 +75,8 @@ from langchain_community.vectorstores import Chroma
 
 
 # Langchain helpers
-from langchain.retrievers.self_query.base import SelfQueryRetriever
+from langchain.retrievers import SelfQueryRetriever, ContextualCompressionRetriever
+from langchain.retrievers.document_compressors import LLMChainExtractor
 from langchain.chains.query_constructor.base import AttributeInfo
 
 
@@ -111,6 +112,56 @@ embedding = HuggingFaceEmbeddings()
 # embedding = HuggingFaceEmbeddings(model_name="mixedbread-ai/mxbai-embed-large-v1")
 fake = Faker()
 
+
+def init_llm():
+    # llm = OpenAI(model='gpt-3.5-turbo-instruct', temperature=0)
+
+    # https://huggingface.co/blog/langchain
+    # https://api.python.langchain.com/en/latest/llms/langchain_community.llms.huggingface_pipeline.HuggingFacePipeline.html
+    # https://huggingface.co/models
+
+
+    # llm = HuggingFacePipeline.from_model_id(
+    #     # model_id="microsoft/Phi-3-mini-4k-instruct",
+    #     model_id="gpt2",
+    #     task="text-generation",
+    #     pipeline_kwargs={
+    #         'max_length': 2500,
+    #         # "max_new_tokens": 10000,
+    #         # "temperature": 0,
+    #     },
+    #     # huggingfacehub_api_token=API_KEY_HUGGING_FACE,
+    #     # token=API_KEY_HUGGING_FACE
+    # )
+
+
+    # ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
+    # ov_llm = HuggingFacePipeline.from_model_id(
+    #     model_id="gpt2",
+    #     task="text-generation",
+    #     # backend="openvino",
+    #     # model_kwargs={"device": "CPU", "ov_config": ov_config},
+    #     pipeline_kwargs={"max_new_tokens": 10},
+    # )
+    llm = HuggingFacePipeline.from_model_id(
+        model_id="microsoft/Phi-3-mini-4k-instruct",
+        task="text-generation",
+        pipeline_kwargs={
+            "max_new_tokens": 1500,
+            # "top_k": 50,
+            # "temperature": 0.1,
+            'do_sample': False
+        },
+    )
+    # Option 1: Use this if you want the generation to involve some randomness, controlled by the temperature parameter.
+    # do_sample=True,  # Enable sampling
+    # temperature=0.1,  # Set the temperature for sampling
+
+    # Option 2: Use this if you prefer deterministic generation without randomness.
+    # do_sample=False,  # Ensure sampling is disabled
+    return llm
+
+llm = init_llm()
 
 @dataclass
 class CollectionData:
@@ -470,6 +521,8 @@ def test_got_distinct_res(vector_db):
     # assert len(set(meta_2)) < len(meta_1)
 
 def test_mmr(vector_db):
+    # Similarity Search
+
     # Addressing Diversity: Maximum marginal relevance
     # How to enforce diversity in the search results.
     qn_1 = "Tell me about all-white mushrooms with large fruiting bodies"
@@ -482,12 +535,15 @@ def test_mmr(vector_db):
     # MMR is a method used to avoid redundancy while retrieving relevant items to a query. Instead of merely retrieving the most relevant items (which can often be very similar to each other), MMR ensures a balance between relevancy and diversity in the items retrieved.
 
 def test_filter_and_self_query_retriever(vector_db, run_qr: bool = False):
+    global llm
+    # Working with metadata
     # LLM Aided Retrieval (Working with metadata)
     qn_3 = "what did they say about regression in the third lecture?"
     src_val = str(pdf_3_path)
     docs_filter_3_1 = vector_db.similarity_search(qn_3, k=3, filter={"source": src_val})
     docs_filter_3_2 = vector_db.similarity_search(qn_3, k=3, filter={"page": 7})
 
+    # Working with metadata using self-query retriever
     # TODO: Test other LLMs
     # Time consuming op on CPU and laptops
     if run_qr:
@@ -516,55 +572,6 @@ def test_filter_and_self_query_retriever(vector_db, run_qr: bool = False):
         # recommended replacement model `gpt-3.5-turbo-instruct` instead.
         document_content_description = "Lecture notes"
 
-        # llm = OpenAI(model='gpt-3.5-turbo-instruct', temperature=0)
-
-        # https://huggingface.co/blog/langchain
-        # https://api.python.langchain.com/en/latest/llms/langchain_community.llms.huggingface_pipeline.HuggingFacePipeline.html
-        # https://huggingface.co/models
-
-
-        # llm = HuggingFacePipeline.from_model_id(
-        #     # model_id="microsoft/Phi-3-mini-4k-instruct",
-        #     model_id="gpt2",
-        #     task="text-generation",
-        #     pipeline_kwargs={
-        #         'max_length': 2500,
-        #         # "max_new_tokens": 10000,
-        #         # "temperature": 0,
-        #     },
-        #     # huggingfacehub_api_token=API_KEY_HUGGING_FACE,
-        #     # token=API_KEY_HUGGING_FACE
-        # )
-
-
-        # ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
-        # ov_llm = HuggingFacePipeline.from_model_id(
-        #     model_id="gpt2",
-        #     task="text-generation",
-        #     # backend="openvino",
-        #     # model_kwargs={"device": "CPU", "ov_config": ov_config},
-        #     pipeline_kwargs={"max_new_tokens": 10},
-        # )
-
-
-        llm = HuggingFacePipeline.from_model_id(
-            model_id="microsoft/Phi-3-mini-4k-instruct",
-            task="text-generation",
-            pipeline_kwargs={
-                "max_new_tokens": 1500,
-                # "top_k": 50,
-                # "temperature": 0.1,
-                'do_sample': False
-            },
-        )
-        # Option 1: Use this if you want the generation to involve some randomness, controlled by the temperature parameter.
-        # do_sample=True,  # Enable sampling
-        # temperature=0.1,  # Set the temperature for sampling
-
-        # Option 2: Use this if you prefer deterministic generation without randomness.
-        # do_sample=False,  # Ensure sampling is disabled
-
-
         # """Retriever that uses a vector store and an LLM to generate the vector store queries."""
         retriever = SelfQueryRetriever.from_llm(
             llm=llm,
@@ -578,8 +585,18 @@ def test_filter_and_self_query_retriever(vector_db, run_qr: bool = False):
 
         # docs_4 = retriever.get_relevant_documents(qn_4) - Deprecated
         docs_4 = retriever.invoke(qn_4, prompt_text='test')
-        # docs_meta_4 = [i for i in docs_4]
-        g = 1
+        docs_meta_4 = [d.metadata for d in docs_4]
+
+def pretty_print_docs(docs):
+    print(f"\n{'-' * 100}\n".join([f"Document {i+1}:\n\n" + d.page_content for i, d in enumerate(docs)]))
+
+def test_contextual_compression_retriever(vector_db):
+    # Another approach for improving the quality of retrieved docs is compression.
+    # Information most relevant to a query may be buried in a document with a lot of irrelevant text.
+    # Passing that full document through your application can lead to more expensive LLM calls and poorer responses.
+    # Contextual compression is meant to fix this.
+    pass
+
 
 
 def add_to_db_pdf_split(vector_db):
@@ -610,7 +627,8 @@ def test_cases(vector_db):
     # test_embedding_data(vector_db)
     # test_got_distinct_res(vector_db)
     # test_mmr(vector_db)
-    test_filter_and_self_query_retriever(vector_db)
+    # test_filter_and_self_query_retriever(vector_db)
+    test_contextual_compression_retriever(vector_db)
 
 
 def add_dirty_data_to_collection():
@@ -620,10 +638,9 @@ def add_dirty_data_to_collection():
 
 
 def add_to_db_batch():
-    # add_to_db_pdf_split(vector_db)
-    # add_to_db_fake_texts(vector_db)
-    # add_to_db_mmr_text(vector_db)
-    pass
+    add_to_db_pdf_split(vector_db)
+    add_to_db_fake_texts(vector_db)
+    add_to_db_mmr_text(vector_db)
 
 
 if __name__ == '__main__':
@@ -633,6 +650,6 @@ if __name__ == '__main__':
     # add_dirty_data_to_collection()
     vector_db = init_db(to_clean_dir=False)
     print(f'DB collection count: {vector_db._collection.count()}')
-    add_to_db_batch()
+    # add_to_db_batch()
     print(f'DB collection count: {vector_db._collection.count()}')
     test_cases(vector_db)
