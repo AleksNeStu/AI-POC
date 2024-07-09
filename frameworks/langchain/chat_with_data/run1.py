@@ -104,7 +104,8 @@ current_dir_parent = current_dir.parent
 md_dir = current_dir_parent / "data/docs/md"
 pdf_dir = current_dir_parent / "data/docs/pdf/"
 tmp_dir = current_dir_parent / "tmp"
-db_dir = current_dir_parent / "db"
+
+db_dir = current_dir / "db"
 
 pdf_1_path = pdf_dir / "MachineLearning-Lecture01.pdf"
 pdf_2_path = pdf_dir / "MachineLearning-Lecture02.pdf"
@@ -335,7 +336,7 @@ def get_yts(
     collection_data.yts_data = yts_data
 
 
-def load_docs(use_saved: bool = True):
+def load_docs(use_saved: bool = True, add_duty_data: bool = False):
     global collection_data
     if use_saved and collection_data_saved:
         collection_data = collection_data_saved
@@ -357,6 +358,8 @@ def load_docs(use_saved: bool = True):
             ]
         )
         dump_collection()
+
+        add_dirty_data_to_collection()
 
 
 def get_targets():
@@ -471,7 +474,7 @@ def init_db(documents: List[Document] = None, to_clean_dir: bool = False):
     return vector_db
 
 
-def add_to_db(vector_db, documents: List[Document] = None, texts: List[str] = None):
+def add_to_db(vector_db :Chroma, documents: List[Document] = None, texts: List[str] = None):
     if documents:
         vector_db.add_documents(documents)
     if texts:
@@ -479,111 +482,143 @@ def add_to_db(vector_db, documents: List[Document] = None, texts: List[str] = No
     return vector_db
 
 
-def test_embedding_data(vector_db):
-    # An embedding function is a function that converts your data (in this case, probably text data) into a numerical vector representation that can be used for similarity comparisons. This is a key part of many machine learning and information retrieval systems.
-    txt_target_em = embedding.embed_query(txt_target)
-    web_md_target_em = embedding.embed_query(web_md_target)
-    pdf_page_target_em = embedding.embed_query(pdf_page_target)
-    notion_md_target_em = embedding.embed_query(notion_md_target)
+
+class TestMLCases:
+
+    @staticmethod
+    def test_mmr(vector_db):
+        # Similarity Search
+
+        # Addressing Diversity: Maximum marginal relevance
+        # How to enforce diversity in the search results.
+        qn_1 = "Tell me about all-white mushrooms with large fruiting bodies"
+        docs_1 = vector_db.similarity_search(qn_1, k=2)
+        docs_mmr_1 = vector_db.max_marginal_relevance_search(qn_1, k=2, fetch_k=3)
+
+        qn_2 = "what did they say about matlab?"
+        docs_2 = vector_db.similarity_search(qn_2, k=3)
+        docs_mmr_2 = vector_db.max_marginal_relevance_search(qn_2, k=3)
+        # MMR is a method used to avoid redundancy while retrieving relevant items to a query. Instead of merely retrieving the most relevant items (which can often be very similar to each other), MMR ensures a balance between relevancy and diversity in the items retrieved.
 
 
-def test_similarity(vector_db):
-    fake_left = fake.text(max_nb_chars=199)
-    fake_right = fake.text(max_nb_chars=199)
-    txt_target_fake = fake_left + txt_target + fake_right
-    sim_texts = are_texts_similar(txt_target, txt_target_fake)
-    assert sim_texts == False
+    @staticmethod
+    def test_filter_and_self_query_retriever(vector_db, run_qr: bool = False):
+        global llm
+        # Working with metadata
+        # LLM Aided Retrieval (Working with metadata)
+        qn_3 = "what did they say about regression in the third lecture?"
+        src_val = str(pdf_3_path)
+        docs_filter_3_1 = vector_db.similarity_search(qn_3, k=3, filter={"source": src_val})
+        docs_filter_3_2 = vector_db.similarity_search(qn_3, k=3, filter={"page": 7})
 
-
-def test_got_distinct_res(vector_db):
-    # Got relevant and distinct results  due to data duplication by fake data
-    meta_1, content_1 = similarity_search(
-        vector_db, qn="is there an email i can ask for help"
-    )
-    assert content_1[0] == content_1[1]
-    # Edge cases (duplications)
-    meta_2, content_2 = similarity_search(
-        vector_db, qn="what did they say about regression in the third lecture?"
-    )
-    assert content_1[0] == content_1[1]
-    # assert len(set(meta_2)) < len(meta_1)
-
-
-def test_mmr(vector_db):
-    # Similarity Search
-
-    # Addressing Diversity: Maximum marginal relevance
-    # How to enforce diversity in the search results.
-    qn_1 = "Tell me about all-white mushrooms with large fruiting bodies"
-    docs_1 = vector_db.similarity_search(qn_1, k=2)
-    docs_mmr_1 = vector_db.max_marginal_relevance_search(qn_1, k=2, fetch_k=3)
-
-    qn_2 = "what did they say about matlab?"
-    docs_2 = vector_db.similarity_search(qn_2, k=3)
-    docs_mmr_2 = vector_db.max_marginal_relevance_search(qn_2, k=3)
-    # MMR is a method used to avoid redundancy while retrieving relevant items to a query. Instead of merely retrieving the most relevant items (which can often be very similar to each other), MMR ensures a balance between relevancy and diversity in the items retrieved.
-
-
-def test_filter_and_self_query_retriever(vector_db, run_qr: bool = False):
-    global llm
-    # Working with metadata
-    # LLM Aided Retrieval (Working with metadata)
-    qn_3 = "what did they say about regression in the third lecture?"
-    src_val = str(pdf_3_path)
-    docs_filter_3_1 = vector_db.similarity_search(qn_3, k=3, filter={"source": src_val})
-    docs_filter_3_2 = vector_db.similarity_search(qn_3, k=3, filter={"page": 7})
-
-    # Working with metadata using self-query retriever
-    # TODO: Test other LLMs
-    # Time consuming op on CPU and laptops
-    if run_qr:
-        # Compression LLM: Increase the number of results you can put in the
-        # context by shrinking the responses to only the relevant Information.
         # Working with metadata using self-query retriever
-        # To address this, we can use SelfQueryRetriever, which uses an LLM to extract:
-        # The query string to use for vector search
-        # A metadata filter to pass in as well
-        metadata_field_info = [
-            AttributeInfo(
-                name="source",
-                description=(
-                    f"The lecture the chunk is from, should be one of "
-                    f"`{str(pdf_1_path)}`, `{str(pdf_2_path)}`, or `{str(pdf_3_path)}`"
+        # TODO: Test other LLMs
+        # Time consuming op on CPU and laptops
+        if run_qr:
+            # Compression LLM: Increase the number of results you can put in the
+            # context by shrinking the responses to only the relevant Information.
+            # Working with metadata using self-query retriever
+            # To address this, we can use SelfQueryRetriever, which uses an LLM to extract:
+            # The query string to use for vector search
+            # A metadata filter to pass in as well
+            metadata_field_info = [
+                AttributeInfo(
+                    name="source",
+                    description=(
+                        f"The lecture the chunk is from, should be one of "
+                        f"`{str(pdf_1_path)}`, `{str(pdf_2_path)}`, or `{str(pdf_3_path)}`"
+                    ),
+                    type="string",
                 ),
-                type="string",
-            ),
-            AttributeInfo(
-                name="page",
-                description="The page from the lecture",
-                type="integer",
-            ),
-        ]
-        # **Note:** The default model for `OpenAI` ("from langchain.llms import OpenAI") is `text-davinci-003`.
-        # Due to the deprication of OpenAI's model `text-davinci-003` on 4 January 2024, you'll be using OpenAI's
-        # recommended replacement model `gpt-3.5-turbo-instruct` instead.
-        document_content_description = "Lecture notes"
+                AttributeInfo(
+                    name="page",
+                    description="The page from the lecture",
+                    type="integer",
+                ),
+            ]
+            # **Note:** The default model for `OpenAI` ("from langchain.llms import OpenAI") is `text-davinci-003`.
+            # Due to the deprication of OpenAI's model `text-davinci-003` on 4 January 2024, you'll be using OpenAI's
+            # recommended replacement model `gpt-3.5-turbo-instruct` instead.
+            document_content_description = "Lecture notes"
 
-        # """Retriever that uses a vector store and an LLM to generate the vector store queries."""
-        self_query_retriever = SelfQueryRetriever.from_llm(
-            llm=llm,
-            vectorstore=vector_db,
-            document_contents=document_content_description,
-            metadata_field_info=metadata_field_info,
-            verbose=True,
+            # """Retriever that uses a vector store and an LLM to generate the vector store queries."""
+            self_query_retriever = SelfQueryRetriever.from_llm(
+                llm=llm,
+                vectorstore=vector_db,
+                document_contents=document_content_description,
+                metadata_field_info=metadata_field_info,
+                verbose=True,
+            )
+            # ValueError: Input length of input_ids is 1331, but `max_length` is set to 50. This can lead to unexpected behavior. You should consider increasing `max_length` or, better yet, setting `max_new_tokens`.
+
+            # This happens because the input_ids (tokenized representation of the input text) have a length of 1331,
+            # which is beyond the model's capacity.
+            qn_4 = "what did they say about regression in the third lecture?"
+            qn_4 = "what did"
+
+            db_docs = vector_db.get().get("documents")
+            len_db_docs = len(db_docs) if db_docs else 0
+            docs_4 = self_query_retriever.get_relevant_documents(qn_4)
+            # docs_4 = self_query_retriever.invoke(qn_4)
+            pretty_print_docs(docs_4)
+
+    @staticmethod
+    def test_get_and_split_targets(vector_db):
+        get_targets()
+        split_targets()
+
+    @staticmethod
+    def test_contextual_compression_retriever(vector_db):
+        # Another approach for improving the quality of retrieved docs is compression.
+        # Information most relevant to a query may be buried in a document with a lot of irrelevant text.
+        # Passing that full document through your application can lead to more expensive LLM calls and poorer responses.
+        # Contextual compression is meant to fix this.
+        compressor = LLMChainExtractor.from_llm(llm)
+        compression_retriever = ContextualCompressionRetriever(
+            base_compressor=compressor, base_retriever=vector_db.as_retriever()
         )
-        # ValueError: Input length of input_ids is 1331, but `max_length` is set to 50. This can lead to unexpected behavior. You should consider increasing `max_length` or, better yet, setting `max_new_tokens`.
+        qn = "what did they say about matlab?"
+        max_length = len(vector_db.get().get("documents")) + 100
+        compressed_docs = compression_retriever.invoke(qn)
+        pretty_print_docs(compressed_docs)
 
-        # This happens because the input_ids (tokenized representation of the input text) have a length of 1331,
-        # which is beyond the model's capacity.
-        qn_4 = "what did they say about regression in the third lecture?"
-        qn_4 = "what did"
 
-        db_docs = vector_db.get().get("documents")
-        len_db_docs = len(db_docs) if db_docs else 0
-        docs_4 = self_query_retriever.get_relevant_documents(qn_4)
-        # docs_4 = self_query_retriever.invoke(qn_4)
-        pretty_print_docs(docs_4)
+    @staticmethod
+    def test_mix_mmr_and_compression(vector_db):
+        pass
 
+
+    @staticmethod
+    def test_embedding_data(vector_db):
+        # An embedding function is a function that converts your data (in this case, probably text data) into a numerical vector representation that can be used for similarity comparisons. This is a key part of many machine learning and information retrieval systems.
+        txt_target_em = embedding.embed_query(txt_target)
+        web_md_target_em = embedding.embed_query(web_md_target)
+        pdf_page_target_em = embedding.embed_query(pdf_page_target)
+        notion_md_target_em = embedding.embed_query(notion_md_target)
+
+
+    @staticmethod
+    def test_similarity(vector_db):
+        fake_left = fake.text(max_nb_chars=199)
+        fake_right = fake.text(max_nb_chars=199)
+        txt_target_fake = fake_left + txt_target + fake_right
+        sim_texts = are_texts_similar(txt_target, txt_target_fake)
+        assert sim_texts == False
+
+
+    @staticmethod
+    def test_got_distinct_res(vector_db):
+        # Got relevant and distinct results  due to data duplication by fake data
+        meta_1, content_1 = similarity_search(
+            vector_db, qn="is there an email i can ask for help"
+        )
+        # assert content_1[0] == content_1[1]
+        # Edge cases (duplications)
+        meta_2, content_2 = similarity_search(
+            vector_db, qn="what did they say about regression in the third lecture?"
+        )
+        # assert content_1[0] == content_1[1]
+        # assert len(set(meta_2)) < len(meta_1)
 
 def pretty_print_docs(docs):
     print(
@@ -591,25 +626,6 @@ def pretty_print_docs(docs):
             [f"Document {i+1}:\n\n" + d.page_content for i, d in enumerate(docs)]
         )
     )
-
-
-def test_contextual_compression_retriever(vector_db):
-    # Another approach for improving the quality of retrieved docs is compression.
-    # Information most relevant to a query may be buried in a document with a lot of irrelevant text.
-    # Passing that full document through your application can lead to more expensive LLM calls and poorer responses.
-    # Contextual compression is meant to fix this.
-    compressor = LLMChainExtractor.from_llm(llm)
-    compression_retriever = ContextualCompressionRetriever(
-        base_compressor=compressor, base_retriever=vector_db.as_retriever()
-    )
-    qn = "what did they say about matlab?"
-    max_length = len(vector_db.get().get("documents")) + 100
-    compressed_docs = compression_retriever.invoke(qn)
-    pretty_print_docs(compressed_docs)
-
-
-def test_mix_mmr_and_compression(vector_db):
-    pass
 
 
 def add_to_db_pdf(vector_db, to_split: bool = False):
@@ -638,13 +654,14 @@ def add_to_db_mmr_text(vector_db):
 
 
 def test_cases(vector_db, to_clean_dir: bool = False):
-    # test_similarity(vector_db)
-    # test_embedding_data(vector_db)
-    # test_got_distinct_res(vector_db)
-    # test_mmr(vector_db)
-    test_filter_and_self_query_retriever(vector_db, run_qr=True)
-    test_contextual_compression_retriever(vector_db)
-    test_mix_mmr_and_compression(vector_db)
+    TestMLCases.test_get_and_split_targets(vector_db)  # test
+    TestMLCases.test_similarity(vector_db)
+    TestMLCases.test_embedding_data(vector_db)
+    TestMLCases.test_got_distinct_res(vector_db)
+    TestMLCases.test_mmr(vector_db)
+    TestMLCases.test_filter_and_self_query_retriever(vector_db, run_qr=True)
+    TestMLCases.test_contextual_compression_retriever(vector_db)
+    TestMLCases.test_mix_mmr_and_compression(vector_db)
 
 
 def add_dirty_data_to_collection():
@@ -652,20 +669,20 @@ def add_dirty_data_to_collection():
     collection_data.pdfs_data.extend(extra_pdf_data)
 
 
-def add_to_db_batch(pdf_only: bool = False):
-    add_to_db_pdf(vector_db)
-    if not pdf_only:
-        add_to_db_fake_texts(vector_db)
-        add_to_db_mmr_text(vector_db)
+def add_to_db_batch(vector_db, pdf_only: bool = False, run: bool = True):
+    if run:
+        print(f"DB collection count: {vector_db._collection.count()}")
+        add_to_db_pdf(vector_db)
+        if not pdf_only:
+            add_to_db_fake_texts(vector_db)
+            add_to_db_mmr_text(vector_db)
 
 
 def execute():
-    load_docs(use_saved=True)
-    get_targets()
-    split_targets()
-    # add_dirty_data_to_collection()
+    load_docs(use_saved=True, add_duty_data=True)
     vector_db = init_db(to_clean_dir=False)
+    # run False DB with is ready
+    add_to_db_batch(vector_db, pdf_only=True, run=False)
     print(f"DB collection count: {vector_db._collection.count()}")
-    # add_to_db_batch(pdf_only=True)
-    print(f"DB collection count: {vector_db._collection.count()}")
+
     test_cases(vector_db, to_clean_dir=False)
