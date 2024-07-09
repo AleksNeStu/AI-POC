@@ -53,6 +53,7 @@ openvino = "^2024.2.0"
 nncf = "^2.11.0"
 optimum-openvino = "^0.0.2"
 onnx = "^1.16.1"
+datasets = "^2.20.0"
 
 
 [tool.poetry.group.dev.dependencies]

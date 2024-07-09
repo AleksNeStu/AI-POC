@@ -1,3 +1,5 @@
+# Ref: https://learn.deeplearning.ai/courses/langchain-chat-with-your-data/
+
 # Python
 import os
 import pickle
@@ -84,7 +86,8 @@ from langchain_community.vectorstores import Chroma
 
 
 # Langchain helpers
-from langchain.retrievers import SelfQueryRetriever, ContextualCompressionRetriever
+from langchain.retrievers import (
+    SelfQueryRetriever, ContextualCompressionRetriever, SVMRetriever, TFIDFRetriever)
 from langchain.retrievers.document_compressors import LLMChainExtractor
 from langchain.chains.query_constructor.base import AttributeInfo
 
@@ -123,7 +126,8 @@ embedding = HuggingFaceEmbeddings()
 fake = Faker()
 vector_db = None
 
-llm = ml.init_llm()
+llm = ml.get_llm_distilgpt2()
+# llm = ml.hugging_face_model
 
 
 @dataclass
@@ -542,12 +546,18 @@ class TestMLCases:
             document_content_description = "Lecture notes"
 
             # """Retriever that uses a vector store and an LLM to generate the vector store queries."""
+
+            # tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+            # https://python.langchain.com/v0.1/docs/modules/data_connection/retrievers/self_query/
             self_query_retriever = SelfQueryRetriever.from_llm(
                 llm=llm,
                 vectorstore=vector_db,
                 document_contents=document_content_description,
                 metadata_field_info=metadata_field_info,
                 verbose=True,
+                k=1,
+                enable_limit=True
             )
             # ValueError: Input length of input_ids is 1331, but `max_length` is set to 50. This can lead to unexpected behavior. You should consider increasing `max_length` or, better yet, setting `max_new_tokens`.
 
@@ -585,7 +595,40 @@ class TestMLCases:
 
     @staticmethod
     def test_mix_mmr_and_compression(vector_db):
-        pass
+        compressor = LLMChainExtractor.from_llm(llm)
+        compression_retriever = ContextualCompressionRetriever(
+            base_compressor=compressor,
+            base_retriever=vector_db.as_retriever(search_type = "mmr")
+        )
+        question = "what did they say about matlab?"
+        compressed_docs = compression_retriever.get_relevant_documents(question)
+        pretty_print_docs(compressed_docs)
+
+
+    @staticmethod
+    def test_other_retrievers(vector_db):
+        # Vectordb as not the only kind of tool to retrieve documents.
+        # We have also TF-IDF or SVM.
+        compressor = LLMChainExtractor.from_llm(llm)
+        pages = collection_data.pdfs_data
+        all_page_text=[p.page_content for p in pages]
+        joined_page_text=" ".join(all_page_text)
+        # Split
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size = 1500,chunk_overlap = 150)
+        splits = text_splitter.split_text(joined_page_text)
+        # Retrieve
+        svm_retriever = SVMRetriever.from_texts(splits, embedding)
+        tfidf_retriever = TFIDFRetriever.from_texts(splits)
+
+        qn1 = "What are major topics for this class?"
+        docs_svm = svm_retriever.get_relevant_documents(qn1)
+        res1 = docs_svm[0]
+
+        qn2 = "what did they say about matlab?"
+        docs_tfidf=tfidf_retriever.get_relevant_documents(qn2)
+        res2 = docs_tfidf[0]
+
+        f = 1
 
 
     @staticmethod
@@ -662,6 +705,7 @@ def test_cases(vector_db, to_clean_dir: bool = False):
     TestMLCases.test_filter_and_self_query_retriever(vector_db, run_qr=True)
     TestMLCases.test_contextual_compression_retriever(vector_db)
     TestMLCases.test_mix_mmr_and_compression(vector_db)
+    TestMLCases.test_other_retrievers(vector_db)
 
 
 def add_dirty_data_to_collection():
@@ -684,5 +728,4 @@ def execute():
     # run False DB with is ready
     add_to_db_batch(vector_db, pdf_only=True, run=False)
     print(f"DB collection count: {vector_db._collection.count()}")
-
     test_cases(vector_db, to_clean_dir=False)
