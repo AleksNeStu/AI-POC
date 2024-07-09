@@ -29,7 +29,6 @@ import numpy as np
 # Transformers
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
-
 # LLM
 # from langchain.llms import OpenAI
 from langchain_openai import OpenAI
@@ -44,15 +43,19 @@ from langchain_community.document_loaders.generic import GenericLoader
 
 # Langchain Document loaders Audio
 from langchain_community.document_loaders.parsers.audio import (
-    OpenAIWhisperParser, OpenAIWhisperParserLocal,
-    FasterWhisperParser, YandexSTTParser
+    OpenAIWhisperParser,
+    OpenAIWhisperParserLocal,
+    FasterWhisperParser,
+    YandexSTTParser,
 )
 
 # Langchain text splitter
 from langchain.text_splitter import (
-    RecursiveCharacterTextSplitter, CharacterTextSplitter, TokenTextSplitter,
+    RecursiveCharacterTextSplitter,
+    CharacterTextSplitter,
+    TokenTextSplitter,
     MarkdownHeaderTextSplitter,
-    #TODO: Test rest of the splitters
+    # TODO: Test rest of the splitters
     # MarkdownTextSplitter,
     # SentenceTransformersTokenTextSplitter,
     # Language,
@@ -90,35 +93,36 @@ CollectionDataType = Optional[Iterator[Document]]
 CollectionSplitType = Optional[Union[Iterator[Document], str]]
 
 use_paid_services = False
-sys.path.append('../..')
-_ = load_dotenv(find_dotenv()) # read local .env file
-OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
-API_KEY_HUGGING_FACE = os.environ.get('API_KEY_HUGGING_FACE')
+sys.path.append("../..")
+_ = load_dotenv(find_dotenv())  # read local .env file
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+API_KEY_HUGGING_FACE = os.environ.get("API_KEY_HUGGING_FACE")
 # OPENAI_API_KEY = os.environ.get('API_KEY_OPEN_AI')
 openai.api_key = OPENAI_API_KEY
 current_dir = Path.cwd()
 current_dir_parent = current_dir.parent
-md_dir = current_dir_parent / 'data/docs/md'
-pdf_dir = current_dir_parent / 'data/docs/pdf/'
+md_dir = current_dir_parent / "data/docs/md"
+pdf_dir = current_dir_parent / "data/docs/pdf/"
 tmp_dir = current_dir_parent / "tmp"
-db_dir = current_dir_parent / 'db'
+db_dir = current_dir_parent / "db"
 
 pdf_1_path = pdf_dir / "MachineLearning-Lecture01.pdf"
 pdf_2_path = pdf_dir / "MachineLearning-Lecture02.pdf"
 pdf_3_path = pdf_dir / "MachineLearning-Lecture03.pdf"
 
 
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+device = "cuda" if torch.cuda.is_available() else "cpu"
 # You can set compute_type to "float32" or "int8".
 # Since your GPU does not support float16, you should set "int8" and not "int8_float16".
-compute_type = "float16" if device == 'cuda' else 'int8'
-nlp_eng = spacy.load('en_core_web_md')
+compute_type = "float16" if device == "cuda" else "int8"
+nlp_eng = spacy.load("en_core_web_md")
 
 embedding = HuggingFaceEmbeddings()
 # embedding = HuggingFaceEmbeddings(model_name="mixedbread-ai/mxbai-embed-large-v1")
 fake = Faker()
 
 llm = init_llm()
+
 
 @dataclass
 class CollectionData:
@@ -127,9 +131,11 @@ class CollectionData:
     webs_data: CollectionDataType = field(default_factory=list)
     yts_data: CollectionDataType = field(default_factory=list)
 
+
 collection_data = CollectionData()
 
-txt_target, web_md_target, pdf_page_target, notion_md_target = '', '', '', ''
+txt_target, web_md_target, pdf_page_target, notion_md_target = "", "", "", ""
+
 
 @dataclass
 class CollectionSplit:
@@ -167,7 +173,7 @@ def are_texts_similar(text1, text2, use_spacy: bool = False, use_np: bool = True
         cosine_similarities = cosine_similarity(tfidf_matrix[0], tfidf_matrix[1])
         text_similarity = cosine_similarities[0][0]
 
-    return text_similarity > 0.99 # Adjust the threshold as needed
+    return text_similarity > 0.99  # Adjust the threshold as needed
 
 
 def lazy_parse_patched(self, blob: Blob) -> Iterator[Document]:
@@ -203,9 +209,7 @@ def lazy_parse_patched(self, blob: Blob) -> Iterator[Document]:
     # Transcribe
     # TODO: Mock FasterWhisperParser due to issue
     # https://github.com/langchain-ai/langchain/issues/23953
-    model = WhisperModel(
-        self.model_size, device=self.device, compute_type=compute_type
-    )
+    model = WhisperModel(self.model_size, device=self.device, compute_type=compute_type)
 
     segments, info = model.transcribe(file_obj, beam_size=5)
 
@@ -221,23 +225,34 @@ def lazy_parse_patched(self, blob: Blob) -> Iterator[Document]:
             },
         )
 
+
 FasterWhisperParser.lazy_parse = lazy_parse_patched
 
 
-def dump_collection(collection: str = 'collection_data'):
-    collection_file = f'{collection}.pkl'
-    with open(collection_file, 'wb') as f:
+def dump_collection(collection: str = "collection_data"):
+    collection_file = f"{collection}.pkl"
+    with open(collection_file, "wb") as f:
         pickle.dump(collection_data, f)
 
-def load_collection(collection: str = 'collection_data'):
-    collection_file = f'{collection}.pkl'
-    with open(collection_file, 'rb') as f:
+
+def load_collection(collection: str = "collection_data"):
+    collection_file = f"{collection}.pkl"
+    with open(collection_file, "rb") as f:
         res = pickle.load(f)
     return res
 
 
-collection_data_saved = load_collection('collection_data') if (current_dir / 'collection_data.pkl').exists() else None
-collection_split_saved = load_collection('collection_split') if (current_dir / 'collection_split.pkl').exists() else None
+collection_data_saved = (
+    load_collection("collection_data")
+    if (current_dir / "collection_data.pkl").exists()
+    else None
+)
+collection_split_saved = (
+    load_collection("collection_split")
+    if (current_dir / "collection_split.pkl").exists()
+    else None
+)
+
 
 # Notion
 def get_notions(notions_path: Path = md_dir):
@@ -246,6 +261,7 @@ def get_notions(notions_path: Path = md_dir):
     # print(notions_data[0].metadata)
     collection_data.notions_data = notions_data
     return notions_data
+
 
 # PDF
 def get_pdf(pdf_path: Path = pdf_1_path):
@@ -256,18 +272,23 @@ def get_pdf(pdf_path: Path = pdf_1_path):
     # print(page.metadata)
     return pdf_data
 
+
 def get_pdfs(pdfs_path: Path = pdf_dir):
     pdfs_loader = PyPDFDirectoryLoader(str(pdfs_path))
     pdfs_data = pdfs_loader.load()
     collection_data.pdfs_data = pdfs_data
     return pdfs_data
 
+
 # URLs (web data)
-def get_web(web_url: URL = 'https://github.com/langchain-ai/langchain/blob/master/README.md'):
+def get_web(
+    web_url: URL = "https://github.com/langchain-ai/langchain/blob/master/README.md",
+):
     web_loader = WebBaseLoader(str(web_url))
     web_data = web_loader.load()
     # print( web_data[0].page_content[500:600])
     return web_data
+
 
 def get_webs(webs_path: List[URL]):
     webs_data = []
@@ -278,11 +299,11 @@ def get_webs(webs_path: List[URL]):
     collection_data.webs_data = webs_data
     return webs_data
 
+
 # YouTube
-def get_yts(yts_path: List[URL],
-            use_paid_services: bool = False,
-            faster_whisper: bool = True
-            ):
+def get_yts(
+    yts_path: List[URL], use_paid_services: bool = False, faster_whisper: bool = True
+):
     # with open(yt_path, 'r') as f:
     #     yt_path_str = f.read()
     yts_data = None
@@ -291,21 +312,21 @@ def get_yts(yts_path: List[URL],
     if use_paid_services:
         yt_loader_whisper = GenericLoader(
             blob_loader=YoutubeAudioLoader(yts_url, tmp_dir_str),
-            blob_parser=OpenAIWhisperParser(api_key=OPENAI_API_KEY)
+            blob_parser=OpenAIWhisperParser(api_key=OPENAI_API_KEY),
         )
-        blob_parser = YandexSTTParser  #TODO: Test and extend the function
+        blob_parser = YandexSTTParser  # TODO: Test and extend the function
         yts_data = yt_loader_whisper.load()
     elif faster_whisper:
         # https://api.python.langchain.com/en/latest/document_loaders/langchain_community.document_loaders.parsers.audio.FasterWhisperParser.html
         yt_loader_faster_whisper = GenericLoader(
             blob_loader=YoutubeAudioLoader(yts_url, tmp_dir_str),
-            blob_parser=FasterWhisperParser(device=device)
+            blob_parser=FasterWhisperParser(device=device),
         )
         yts_data = yt_loader_faster_whisper.load()
     else:
         yt_loader_whisper_local = GenericLoader(
             blob_loader=YoutubeAudioLoader(yts_url, tmp_dir_str),
-            blob_parser=OpenAIWhisperParserLocal(device=device)
+            blob_parser=OpenAIWhisperParserLocal(device=device),
         )
         yts_data = yt_loader_whisper_local.load()
 
@@ -320,17 +341,22 @@ def load_docs(use_saved: bool = True):
     else:
         get_yts(
             yts_path=[
-                URL('https://www.youtube.com/watch?v=1bUy-1hGZpI&ab_channel=IBMTechnology')
+                URL(
+                    "https://www.youtube.com/watch?v=1bUy-1hGZpI&ab_channel=IBMTechnology"
+                )
             ],
-            use_paid_services=False, faster_whisper=False)
+            use_paid_services=False,
+            faster_whisper=False,
+        )
         get_notions()
         get_pdfs()
         get_webs(
             webs_path=[
-                URL('https://github.com/langchain-ai/langchain/blob/master/README.md')
+                URL("https://github.com/langchain-ai/langchain/blob/master/README.md")
             ]
         )
         dump_collection()
+
 
 def get_targets():
     global txt_target, web_md_target, pdf_page_target, notion_md_target, collection_data
@@ -340,43 +366,36 @@ def get_targets():
     pdf_page_target = collection_data.pdfs_data[0].page_content
     notion_md_target = collection_data.notions_data[0].page_content
 
+
 def split_targets():
     global collection_data
     text_char_splitter = CharacterTextSplitter(
-        chunk_size=450,
-        chunk_overlap=0,
-        separator = ' '
+        chunk_size=450, chunk_overlap=0, separator=" "
     )
     txt_split_char = text_char_splitter.split_text(txt_target)
-    #assert len(txt_split_char) == 19
+    # assert len(txt_split_char) == 19
 
     text_rec_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=150,
-        chunk_overlap=0,
-        separators=["\n\n", "\n", "(?<=\. )", " ", ""]
+        chunk_size=150, chunk_overlap=0, separators=["\n\n", "\n", "(?<=\. )", " ", ""]
     )
     txt_split_rec = text_rec_splitter.split_text(txt_target)
     # assert len(txt_split_rec) == 58
 
     text_docf_splitter = CharacterTextSplitter(
-        separator="\n",
-        chunk_size=1000,
-        chunk_overlap=150,
-        length_function=len
+        separator="\n", chunk_size=1000, chunk_overlap=150, length_function=len
     )
-    pdf_split_docf = text_docf_splitter.split_documents(
-        collection_data.pdfs_data)
+    pdf_split_docf = text_docf_splitter.split_documents(collection_data.pdfs_data)
     # assert len(collection_data.pdfs_data) == 22
     # assert len(pdf_split_docf) == 77
 
-    notion_split_docf = text_docf_splitter.split_documents(
-        collection_data.notions_data)
+    notion_split_docf = text_docf_splitter.split_documents(collection_data.notions_data)
     # assert len(collection_data.notions_data) == 34
     # assert len(notion_split_docf) == 442
 
     token_splitter_docf = TokenTextSplitter(chunk_size=20, chunk_overlap=0)
     pdf_token_split_docf = token_splitter_docf.split_documents(
-        collection_data.pdfs_data)
+        collection_data.pdfs_data
+    )
     # assert len(txt_split_rec) == 58
 
     headers_to_split_on = [
@@ -387,18 +406,22 @@ def split_targets():
     markdown_splitter = MarkdownHeaderTextSplitter(
         headers_to_split_on=headers_to_split_on
     )
-    notion_md_targets_txt = ' '.join([d.page_content for d in collection_data.notions_data])
+    notion_md_targets_txt = " ".join(
+        [d.page_content for d in collection_data.notions_data]
+    )
     md_header_splits = markdown_splitter.split_text(notion_md_targets_txt)
+
 
 def get_db(db_dir: Path = db_dir):
     db_dir_str = str(db_dir)
-    if db_dir.exists() and (db_dir / 'chroma.sqlite3').exists():
+    if db_dir.exists() and (db_dir / "chroma.sqlite3").exists():
         vector_db = Chroma(persist_directory=db_dir_str, embedding_function=embedding)
         return vector_db
 
 
-def create_db(db_dir: Path = db_dir, to_clean_dir: bool = False,
-              documents: List[Document] = None):
+def create_db(
+    db_dir: Path = db_dir, to_clean_dir: bool = False, documents: List[Document] = None
+):
     # Save to db
     vector_db = None
     db_dir_str = str(db_dir)
@@ -407,14 +430,16 @@ def create_db(db_dir: Path = db_dir, to_clean_dir: bool = False,
         del vector_db
 
     if documents:
-        vector_db = Chroma.from_documents(embedding=embedding, persist_directory=db_dir_str, documents=documents)
+        vector_db = Chroma.from_documents(
+            embedding=embedding, persist_directory=db_dir_str, documents=documents
+        )
     else:
         vector_db = Chroma(persist_directory=db_dir_str, embedding_function=embedding)
 
     return vector_db
 
 
-def similarity_search(vector_db, qn: str, k = 5):
+def similarity_search(vector_db, qn: str, k=5):
     # Store
     # Normal query
     docs_query = vector_db.similarity_search(query=qn, k=k)
@@ -425,7 +450,7 @@ def similarity_search(vector_db, qn: str, k = 5):
     return query_metadata, query_content
 
 
-def max_marginal_relevance_search(vector_db, qn: str, k = 5, fetch_k=3):
+def max_marginal_relevance_search(vector_db, qn: str, k=5, fetch_k=3):
     # Store
     # Normal query
     docs_query = vector_db.max_marginal_relevance_search(query=qn, k=k, fetch_k=fetch_k)
@@ -460,6 +485,7 @@ def test_embedding_data(vector_db):
     pdf_page_target_em = embedding.embed_query(pdf_page_target)
     notion_md_target_em = embedding.embed_query(notion_md_target)
 
+
 def test_similarity(vector_db):
     fake_left = fake.text(max_nb_chars=199)
     fake_right = fake.text(max_nb_chars=199)
@@ -467,16 +493,20 @@ def test_similarity(vector_db):
     sim_texts = are_texts_similar(txt_target, txt_target_fake)
     assert sim_texts == False
 
+
 def test_got_distinct_res(vector_db):
     # Got relevant and distinct results  due to data duplication by fake data
     meta_1, content_1 = similarity_search(
-        vector_db, qn="is there an email i can ask for help")
+        vector_db, qn="is there an email i can ask for help"
+    )
     assert content_1[0] == content_1[1]
     # Edge cases (duplications)
     meta_2, content_2 = similarity_search(
-        vector_db, qn="what did they say about regression in the third lecture?")
+        vector_db, qn="what did they say about regression in the third lecture?"
+    )
     assert content_1[0] == content_1[1]
     # assert len(set(meta_2)) < len(meta_1)
+
 
 def test_mmr(vector_db):
     # Similarity Search
@@ -491,6 +521,7 @@ def test_mmr(vector_db):
     docs_2 = vector_db.similarity_search(qn_2, k=3)
     docs_mmr_2 = vector_db.max_marginal_relevance_search(qn_2, k=3)
     # MMR is a method used to avoid redundancy while retrieving relevant items to a query. Instead of merely retrieving the most relevant items (which can often be very similar to each other), MMR ensures a balance between relevancy and diversity in the items retrieved.
+
 
 def test_filter_and_self_query_retriever(vector_db, run_qr: bool = False):
     global llm
@@ -516,7 +547,8 @@ def test_filter_and_self_query_retriever(vector_db, run_qr: bool = False):
                 name="source",
                 description=(
                     f"The lecture the chunk is from, should be one of "
-                    f"`{str(pdf_1_path)}`, `{str(pdf_2_path)}`, or `{str(pdf_3_path)}`"),
+                    f"`{str(pdf_1_path)}`, `{str(pdf_2_path)}`, or `{str(pdf_3_path)}`"
+                ),
                 type="string",
             ),
             AttributeInfo(
@@ -536,7 +568,7 @@ def test_filter_and_self_query_retriever(vector_db, run_qr: bool = False):
             vectorstore=vector_db,
             document_contents=document_content_description,
             metadata_field_info=metadata_field_info,
-            verbose=True
+            verbose=True,
         )
         # ValueError: Input length of input_ids is 1331, but `max_length` is set to 50. This can lead to unexpected behavior. You should consider increasing `max_length` or, better yet, setting `max_new_tokens`.
 
@@ -545,16 +577,20 @@ def test_filter_and_self_query_retriever(vector_db, run_qr: bool = False):
         qn_4 = "what did they say about regression in the third lecture?"
         qn_4 = "what did"
 
-
-        db_docs = vector_db.get().get('documents')
+        db_docs = vector_db.get().get("documents")
         len_db_docs = len(db_docs) if db_docs else 0
         docs_4 = self_query_retriever.get_relevant_documents(qn_4)
-        #docs_4 = self_query_retriever.invoke(qn_4)
+        # docs_4 = self_query_retriever.invoke(qn_4)
         pretty_print_docs(docs_4)
 
 
 def pretty_print_docs(docs):
-    print(f"\n{'-' * 100}\n".join([f"Document {i+1}:\n\n" + d.page_content for i, d in enumerate(docs)]))
+    print(
+        f"\n{'-' * 100}\n".join(
+            [f"Document {i+1}:\n\n" + d.page_content for i, d in enumerate(docs)]
+        )
+    )
+
 
 def test_contextual_compression_retriever(vector_db):
     # Another approach for improving the quality of retrieved docs is compression.
@@ -563,13 +599,13 @@ def test_contextual_compression_retriever(vector_db):
     # Contextual compression is meant to fix this.
     compressor = LLMChainExtractor.from_llm(llm)
     compression_retriever = ContextualCompressionRetriever(
-        base_compressor=compressor,
-        base_retriever=vector_db.as_retriever()
+        base_compressor=compressor, base_retriever=vector_db.as_retriever()
     )
     qn = "what did they say about matlab?"
-    max_length = len(vector_db.get().get('documents')) + 100
+    max_length = len(vector_db.get().get("documents")) + 100
     compressed_docs = compression_retriever.invoke(qn)
     pretty_print_docs(compressed_docs)
+
 
 def test_mix_mmr_and_compression(vector_db):
     pass
@@ -578,8 +614,7 @@ def test_mix_mmr_and_compression(vector_db):
 def add_to_db_pdf(vector_db, to_split: bool = False):
     if to_split:
         text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1500,
-            chunk_overlap=150
+            chunk_size=1500, chunk_overlap=150
         )
         documents = text_splitter.split_documents(collection_data.pdfs_data)
         add_to_db(vector_db, documents=documents)
@@ -601,7 +636,7 @@ def add_to_db_mmr_text(vector_db):
     add_to_db(vector_db, texts=texts)
 
 
-def test_cases(vector_db, to_clean_dir:bool = False):
+def test_cases(vector_db, to_clean_dir: bool = False):
     # test_similarity(vector_db)
     # test_embedding_data(vector_db)
     # test_got_distinct_res(vector_db)
@@ -616,7 +651,6 @@ def add_dirty_data_to_collection():
     collection_data.pdfs_data.extend(extra_pdf_data)
 
 
-
 def add_to_db_batch(pdf_only: bool = False):
     add_to_db_pdf(vector_db)
     if not pdf_only:
@@ -624,13 +658,13 @@ def add_to_db_batch(pdf_only: bool = False):
         add_to_db_mmr_text(vector_db)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     load_docs(use_saved=True)
     get_targets()
     split_targets()
     # add_dirty_data_to_collection()
     vector_db = init_db(to_clean_dir=False)
-    print(f'DB collection count: {vector_db._collection.count()}')
+    print(f"DB collection count: {vector_db._collection.count()}")
     # add_to_db_batch(pdf_only=True)
-    print(f'DB collection count: {vector_db._collection.count()}')
+    print(f"DB collection count: {vector_db._collection.count()}")
     test_cases(vector_db, to_clean_dir=False)

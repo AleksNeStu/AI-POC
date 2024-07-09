@@ -9,7 +9,7 @@ from model import model_pipeline
 
 app = FastAPI()
 
-URL_IMG = 'http://images.cocodataset.org/val2017/000000039769.jpg'
+URL_IMG = "http://images.cocodataset.org/val2017/000000039769.jpg"
 
 
 @app.get("/")
@@ -20,6 +20,7 @@ def read_root():
 def ask(text, image):
     result = model_pipeline(text, image)
     return {"answer": result}
+
 
 @app.post("/ask_file")
 def ask_file(text: str, image: UploadFile):
@@ -32,6 +33,7 @@ def ask_file(text: str, image: UploadFile):
 def ask_url(text: str, url: str = URL_IMG):
     image = Image.open(requests.get(url, stream=True).raw)
     return ask(text, image)
+
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=5000, reload=True)

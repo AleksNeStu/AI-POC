@@ -11,7 +11,7 @@ token_path = Path("token.txt")
 token = token_path.read_text().strip() or API_KEY_HUGGING_FACE
 
 # Device (Cuda GPU or CPU)
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 pipe = StableDiffusionPipeline.from_pretrained(
     # https://huggingface.co/models?library=diffusers&sort=downloads
@@ -25,7 +25,6 @@ pipe = StableDiffusionPipeline.from_pretrained(
     variant="fp16",
     # Remove the torch_dtype=torch.float16 argument: If you don't need half-precision computations, you can simply remove this argument. PyTorch will then use torch.float32 by default, which is widely supported on both CPUs and GPUs.
     # torch_dtype=torch.float16,
-
     # Keyword arguments {'use_auth_token': '***'} are not expected by
     # use_auth_token=token,
 )

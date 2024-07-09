@@ -16,5 +16,4 @@ def model_pipeline(text: str, image: Image):
     logits = outputs.logits
     idx = logits.argmax(-1).item()
 
-    return  model.config.id2label[idx]
-
+    return model.config.id2label[idx]

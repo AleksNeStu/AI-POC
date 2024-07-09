@@ -2,17 +2,24 @@ import json
 import requests
 import time
 import cv2
+
 # from google.colab.patches import cv2_imshow
 import os
-from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
+from tenacity import (
+    retry,
+    wait_exponential,
+    stop_after_attempt,
+    retry_if_exception_type,
+)
 import matplotlib.pyplot as plt
 from PIL import Image
 
 
-
 def _is_interactive():
     import __main__ as main
-    return not hasattr(main, '__file__')
+
+    return not hasattr(main, "__file__")
+
 
 is_interactive = _is_interactive()
 
@@ -22,19 +29,16 @@ API_KEY_HUGGING_FACE = os.environ.get("API_KEY_HUGGING_FACE")
 # https://huggingface.co/facebook/detr-resnet-50
 # Detection TRansformer (DETR) model trained end-to-end on COCO 2017 object detection (118k annotated images).
 API_URL_CV = "https://api-inference.huggingface.co/models/facebook/detr-resnet-50"
-HEADERS_CV = {
-    "Authorization": f"Bearer {API_KEY_HUGGING_FACE}"
-}
+HEADERS_CV = {"Authorization": f"Bearer {API_KEY_HUGGING_FACE}"}
 # https://huggingface.co/Helsinki-NLP/opus-mt-en-es
 API_URL_NLP = "https://api-inference.huggingface.co/models/Helsinki-NLP/opus-mt-en-fr"
 HEADERS_NLP = {"Authorization": f"Bearer {API_KEY_HUGGING_FACE}"}
 
 
-
-@retry(wait=wait_exponential(
-    multiplier=1, min=2, max=10),
+@retry(
+    wait=wait_exponential(multiplier=1, min=2, max=10),
     stop=stop_after_attempt(5),
-    retry=retry_if_exception_type(requests.exceptions.RequestException)
+    retry=retry_if_exception_type(requests.exceptions.RequestException),
 )
 def get_cv_data(image_path: str):
     with open(image_path, "rb") as f:
@@ -50,18 +54,17 @@ def get_cv_data(image_path: str):
     return data
 
 
-@retry(wait=wait_exponential(
-    multiplier=1, min=2, max=10),
+@retry(
+    wait=wait_exponential(multiplier=1, min=2, max=10),
     stop=stop_after_attempt(5),
-    retry=retry_if_exception_type(requests.exceptions.RequestException)
+    retry=retry_if_exception_type(requests.exceptions.RequestException),
 )
 def translate_text(text: str):
     payload = {
         "inputs": text,
     }
     data = json.dumps(payload)
-    response = requests.request(
-        "POST", API_URL_NLP, headers=HEADERS_NLP, data=data)
+    response = requests.request("POST", API_URL_NLP, headers=HEADERS_NLP, data=data)
     data = json.loads(response.content.decode("utf-8"))
 
     if isinstance(data, dict) and data.get("error"):
@@ -77,10 +80,11 @@ def get_image(image_path: str, to_show: bool = True):
     image = cv2.imread(image_path)
     return image
 
-def show_image(image = None, image_path = None, use_pil: bool = True):
+
+def show_image(image=None, image_path=None, use_pil: bool = True):
     if image_path:
         image = get_image(image_path)
-    #Show image
+    # Show image
     if is_interactive:
         pass
         # from google.colab.patches import cv2_imshow
@@ -95,8 +99,8 @@ def show_image(image = None, image_path = None, use_pil: bool = True):
             # Some issues with res quality
             # cv2.imshow('Savanna Image', image)
             plt.imshow(
-                cv2.cvtColor(image, cv2.COLOR_BGR2RGB),
-                interpolation='none') # Convert the image from BGR to RGB
+                cv2.cvtColor(image, cv2.COLOR_BGR2RGB), interpolation="none"
+            )  # Convert the image from BGR to RGB
             # color
             # space
             plt.title("Image repr")
@@ -115,7 +119,7 @@ def add_cv_data_to_image(image, cv_data):
         xmax = box["xmax"]
         ymax = box["ymax"]
         label = result["label"]
-        label_ft = translate_text(label)[0]['translation_text']
+        label_ft = translate_text(label)[0]["translation_text"]
 
         red_color = (255, 50, 50)
 
@@ -124,9 +128,14 @@ def add_cv_data_to_image(image, cv_data):
 
         # Draw the label.
         cv2.putText(
-            image, label_ft,
-            (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX,
-            1, red_color, 2)
+            image,
+            label_ft,
+            (xmin, ymin - 10),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            red_color,
+            2,
+        )
 
     return image
 

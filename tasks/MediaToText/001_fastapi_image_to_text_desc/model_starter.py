@@ -23,9 +23,9 @@ logits = outputs.logits
 idx = logits.argmax(-1).item()
 
 # TODO: inspect outputs and test how to get the answer
-#print(idx)
-#print()
-#print(model.config.id2label))
+# print(idx)
+# print()
+# print(model.config.id2label))
 
 print("Predicted answer:", model.config.id2label[idx])
 

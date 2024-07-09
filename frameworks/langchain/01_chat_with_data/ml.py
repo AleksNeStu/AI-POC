@@ -6,14 +6,14 @@ from transformers import AutoModelForCausalLM
 # Langchain store
 
 
-def init_llm(is_open_ai: bool = False, is_gpt2 = True, is_ms = False, is_google = False):
+def init_llm(is_open_ai: bool = False, is_gpt2=True, is_ms=False, is_google=False):
     # https://huggingface.co/blog/langchain
     # https://api.python.langchain.com/en/latest/llms/langchain_community.llms.huggingface_pipeline.HuggingFacePipeline.html
     # https://huggingface.co/models
 
     llm = None
     if is_open_ai:
-        llm = OpenAI(model='gpt-3.5-turbo-instruct', temperature=0)
+        llm = OpenAI(model="gpt-3.5-turbo-instruct", temperature=0)
     elif is_gpt2:
         # llm1 = HuggingFacePipeline.from_model_id(
         #     # model_id="microsoft/Phi-3-mini-4k-instruct",
@@ -32,7 +32,7 @@ def init_llm(is_open_ai: bool = False, is_gpt2 = True, is_ms = False, is_google 
             model_id="distilbert/distilgpt2",
             task="text-generation",
             pipeline_kwargs={
-                'max_length': 1024,
+                "max_length": 1024,
                 # 'max_new_tokens': 512,
                 "do_sample": True,
                 # "temperature": 0,
@@ -82,14 +82,14 @@ def init_llm(is_open_ai: bool = False, is_gpt2 = True, is_ms = False, is_google 
                 "max_new_tokens": 500,
                 "top_k": 50,
                 "temperature": 0.7,
-                'do_sample': False
+                "do_sample": False,
             },
         )
     elif is_google:
         llm = AutoModelForCausalLM.from_pretrained(
             pretrained_model_name_or_path="google/gemma-2-9b",
             device_map="auto",
-            torch_dtype=torch.bfloat16
+            torch_dtype=torch.bfloat16,
         )
 
     response = llm.invoke("Once upon a time")
