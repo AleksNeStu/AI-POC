@@ -1,39 +1,37 @@
 import os
 import sys
 
-import openai
-from langchain.chains import ConversationalRetrievalChain, RetrievalQA
-from langchain.chat_models import ChatOpenAI, HumanInputChatModel
-
-# https://python.langchain.com/docs/integrations/document_loaders/
-from langchain.document_loaders import DirectoryLoader, TextLoader
-from langchain.embeddings import OpenAIEmbeddings
+from langchain.chains import ConversationalRetrievalChain
 from langchain.indexes import VectorstoreIndexCreator
 from langchain.indexes.vectorstore import VectorStoreIndexWrapper
-from langchain.llms import OpenAI
-from langchain.vectorstores import Chroma
+from langchain_community.chat_models import ChatOpenAI, ChatHuggingFace
+# https://python.langchain.com/docs/integrations/document_loaders/
+from langchain_community.document_loaders import DirectoryLoader
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_openai import OpenAIEmbeddings
+from langchain_community.vectorstores import Chroma
 
-from langchain_community.embeddings import HuggingFaceEmbeddings
 
+from langchain_community.llms.huggingface_endpoint import HuggingFaceEndpoint
 
 import constants
 
-embedding = HuggingFaceEmbeddings()
-# embeddings = OpenAIEmbeddings()
-
 os.environ["OPENAI_API_KEY"] = constants.API_KEY
-
+use_free = True
 # Enable to save to disk & reuse the model (for repeated queries on the same data)
 PERSIST = False
-
 query = None
+chain = None
+embedding = HuggingFaceEmbeddings() if use_free else OpenAIEmbeddings()
+
+
 if len(sys.argv) > 1:
     query = sys.argv[1]
 
 if PERSIST and os.path.exists("persist"):
     print("Reusing index...\n")
     vectorstore = Chroma(
-        persist_directory="persist", embedding_function=OpenAIEmbeddings()
+        persist_directory="persist", embedding_function=embedding
     )
     index = VectorStoreIndexWrapper(vectorstore=vectorstore)
 else:
@@ -46,17 +44,27 @@ else:
     else:
         index = VectorstoreIndexCreator(embedding=embedding).from_loaders([loader])
 
-chain_chat_gpt = ConversationalRetrievalChain.from_llm(
-    llm=ChatOpenAI(model="gpt-3.5-turbo"),
-    retriever=index.vectorstore.as_retriever(search_kwargs={"k": 1}),
+llm_gpt2 = HuggingFaceEndpoint(
+    repo_id="distilgpt2",
+    task="text-generation",
+    max_new_tokens=100,
 )
-chain_free = ConversationalRetrievalChain.from_llm(
-    llm=HumanInputChatModel(model="gpt-3.5-turbo"),
-    retriever=index.vectorstore.as_retriever(search_kwargs={"k": 1}),
-)
-chain = chain_free
+
+if use_free:
+    chain = ConversationalRetrievalChain.from_llm(
+        llm=ChatHuggingFace(llm=llm_gpt2),
+        retriever=index.vectorstore.as_retriever(search_kwargs={"k": 1}),
+    )
+else:
+    chain = ConversationalRetrievalChain.from_llm(
+        llm=ChatOpenAI(model="gpt-3.5-turbo"),
+        retriever=index.vectorstore.as_retriever(search_kwargs={"k": 1}),
+    )
+
+
 
 chat_history = []
+
 while True:
     if not query:
         query = input("Prompt: ")
