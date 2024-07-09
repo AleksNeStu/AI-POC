@@ -3,55 +3,26 @@
 # Python
 import os
 import pickle
-import sys
+import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterator, Union, Optional, List
-from dotenv import load_dotenv, find_dotenv
 
-# Local import
-from common import ml
-
-# Helpers
-from faker import Faker
-import shutil
-
-# Network
-from yarl import URL
-
+import numpy as np
+import openai
 # ML
 # python -m spacy download en_core_web_md
 import spacy
 import torch
-import openai
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-import numpy as np
-
-# Transformers
-from transformers import AutoTokenizer, AutoModelForCausalLM
-
-# LLM
-# from langchain.llms import OpenAI
-from langchain_openai import OpenAI
-from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline
+from dotenv import load_dotenv, find_dotenv
+# Helpers
+from faker import Faker
 from langchain.chains import RetrievalQA
-
-# Langchain Document loaders
-from langchain_community.document_loaders import NotionDirectoryLoader
-from langchain_community.document_loaders import PyPDFLoader, PyPDFDirectoryLoader
-from langchain_community.document_loaders import WebBaseLoader
-from langchain_community.document_loaders import YoutubeAudioLoader
-from langchain_community.document_loaders.generic import GenericLoader
-
-# Langchain Document loaders Audio
-from langchain_community.document_loaders.parsers.audio import (
-    OpenAIWhisperParser,
-    OpenAIWhisperParserLocal,
-    FasterWhisperParser,
-    YandexSTTParser,
-)
-
+from langchain.chains.query_constructor.base import AttributeInfo
+# Langchain helpers
+from langchain.retrievers import (
+    SelfQueryRetriever, ContextualCompressionRetriever)
+from langchain.retrievers.document_compressors import LLMChainExtractor
 # Langchain text splitter
 from langchain.text_splitter import (
     RecursiveCharacterTextSplitter,
@@ -65,11 +36,30 @@ from langchain.text_splitter import (
     # NLTKTextSplitter,
     # SpacyTextSplitter,
 )
-
+# Langchain Document loaders
+from langchain_community.document_loaders import NotionDirectoryLoader
+from langchain_community.document_loaders import PyPDFLoader, PyPDFDirectoryLoader
+from langchain_community.document_loaders import WebBaseLoader
+from langchain_community.document_loaders import YoutubeAudioLoader
 # Langchain Document loaders help
 from langchain_community.document_loaders.blob_loaders import Blob
+from langchain_community.document_loaders.generic import GenericLoader
+# Langchain Document loaders Audio
+from langchain_community.document_loaders.parsers.audio import (
+    OpenAIWhisperParser,
+    OpenAIWhisperParserLocal,
+    FasterWhisperParser,
+    YandexSTTParser,
+)
+from langchain_community.retrievers import SVMRetriever, TFIDFRetriever
+# Langchain store
+# TODO: Test rest
+from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
-
+from langchain_openai import ChatOpenAI
+# LLM
+# from langchain.llms import OpenAI
+from langchain_openai import OpenAI
 # Langchain embeddings
 # TODO: Test rest of the embeddings
 # from langchain.embeddings import (
@@ -78,21 +68,16 @@ from langchain_core.documents import Document
 #     OpenVINOEmbeddings,
 #     SpacyEmbeddings
 # )
-from langchain_community.embeddings import OpenAIEmbeddings
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.chat_models import ChatOpenAI
+from langchain_openai import OpenAIEmbeddings
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+# Network
+from yarl import URL
 
-# Langchain store
-# TODO: Test rest
-from langchain_community.vectorstores import Chroma
+# Local import
+from common import ml
 
-
-# Langchain helpers
-from langchain.retrievers import (
-    SelfQueryRetriever, ContextualCompressionRetriever)
-from langchain_community.retrievers import SVMRetriever, TFIDFRetriever
-from langchain.retrievers.document_compressors import LLMChainExtractor
-from langchain.chains.query_constructor.base import AttributeInfo
+# Transformers
 
 
 CollectionDataType = Optional[Iterator[Document]]
@@ -500,6 +485,13 @@ def init_db(name: str = 'langchain', documents: List[Document] = None, to_clean_
 
     return vector_db
 
+def init_mem_db_w_pdf(pdf_path: Path = pdf_langchain):
+    in_memory_db = get_db(db_dir=None, name='in_memory')
+    pdf_f_docs = get_pdf(pdf_path)
+    get_db_doc_count(in_memory_db)
+    add_to_db(in_memory_db, pdf_f_docs)
+    get_db_doc_count(in_memory_db)
+    return in_memory_db
 
 def add_to_db(vector_db: Chroma, documents: List[Document] = None, texts: List[str] = None):
     if documents:
@@ -680,21 +672,25 @@ class TestMLCases:
 
     @staticmethod
     def test_qa(vector_db):
-        in_memory_db = get_db(db_dir=None, name='in_memory')
-        pdf_f_docs = get_pdf(pdf_3_path)
-        get_db_doc_count(in_memory_db)
-        add_to_db(in_memory_db, pdf_f_docs)
-        get_db_doc_count(in_memory_db)
-
         qa_chain = RetrievalQA.from_chain_type(
             llm_chat,
-            retriever=in_memory_db.as_retriever())
+            chain_type="stuff",
+            retriever=vector_db.as_retriever())
         qn = "What is a topic?"
-
         res = qa_chain({"query": qn})
+        print(res)
+        # for pdf_langchain
+        is_sim = are_texts_similar(
+            res, "A topic can refer to a subject or theme that is being discussed, studied, "
+                                "or written about. In the context of LangChain, a topic could be related to the subject matter or focus of the applications being developed using the framework.")
+        assert is_sim == True
         # assert res == (
         #     "The topics discussed in the context provided include locally weighted regression, linear regression, logistic regression, the perceptron algorithm, and Newton's method."
         # )
+
+    @staticmethod
+    def test_qa_w_prompt_tmpl(vector_db):
+        pass
 
 
 
@@ -733,7 +729,7 @@ def add_to_db_mmr_text(vector_db):
     add_to_db(vector_db, texts=texts)
 
 
-def run_tests_1(vector_db, to_clean_dir: bool = False):
+def run_tests_1(vector_db, vector_db_mem, to_clean_dir: bool = False):
     # TestMLCases.test_get_and_split_targets(vector_db)  # test
     # TestMLCases.test_similarity(vector_db)
     # TestMLCases.test_embedding_data(vector_db)
@@ -743,7 +739,7 @@ def run_tests_1(vector_db, to_clean_dir: bool = False):
     # TestMLCases.test_contextual_compression_retriever(vector_db)
     # TestMLCases.test_mix_mmr_and_compression(vector_db)
     # TestMLCases.test_other_retrievers(vector_db)
-    TestMLCases.test_qa(vector_db)
+    TestMLCases.test_qa(vector_db_mem)
 
 def add_to_db_batch_2(vector_db):
     g = 1
@@ -768,12 +764,14 @@ def add_to_db_batch_1(vector_db, pdf_only: bool = False, run: bool = True):
 
 def execute(tests_1 = True, tests_2 = True):
     load_docs(use_saved=True, add_duty_data=True)
+    vector_db_mem = init_mem_db_w_pdf()
+
     if tests_1:
         vector_db_1 = init_db(name='tests_1', to_clean_dir=False)
         # run True 1 time only
         add_to_db_batch_1(vector_db_1, pdf_only=True, run=False)
         get_db_doc_count(vector_db_1)
-        run_tests_1(vector_db_1, to_clean_dir=False)
+        run_tests_1(vector_db_1, vector_db_mem, to_clean_dir=False)
     elif tests_2:
         vector_db_2 = init_db(name='tests_2', to_clean_dir=False)
         run_tests_2(vector_db=vector_db_2)

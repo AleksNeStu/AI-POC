@@ -141,3 +141,13 @@ Billion Parameters: "1.5B" stands for 1.5 billion parameters. This indicates a v
 Model Size: The size of the model in terms of parameters often correlates with its memory and computational requirements. Larger models typically require more memory (RAM) and computational power (CPU/GPU) to operate efficiently.
 
 
+# Token
+You can think of tokens as pieces of words used for natural language processing. For English text, 1 token is approximately 4 characters or 0.75 words. As a point of reference, the collected works of Shakespeare are about 900,000 words or 1.2M tokens.
+
+To learn more about how tokens work and estimate your usage…
+
+Experiment with our interactive Tokenizer tool(opens in a new window).
+
+Log in to your account and enter text into the Playground. The counter in the footer will display how many tokens are in your text.
+
+

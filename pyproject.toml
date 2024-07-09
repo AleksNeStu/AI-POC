@@ -54,6 +54,8 @@ nncf = "^2.11.0"
 optimum-openvino = "^0.0.2"
 onnx = "^1.16.1"
 datasets = "^2.20.0"
+g4f = "^0.3.2.1"
+curl-cffi = "^0.7.0"
 
 
 [tool.poetry.group.dev.dependencies]

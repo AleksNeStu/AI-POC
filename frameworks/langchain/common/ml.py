@@ -23,6 +23,11 @@ DISTIL_GPT2 = 'distilgpt2'
 
 
 
+# Calcualate tokens
+# https://platform.openai.com/tokenizer
+
+
+
 def split_to_chunks():
     # ValueError: Input length of input_ids is 1024, but `max_length` is set to 1024. This can lead to unexpected behavior. You should consider increasing `max_length` or, better yet, setting `max_new_tokens`.
     pass
@@ -45,6 +50,7 @@ def get_pipeline(model_name: str = DISTIL_GPT2):
 
 
 def get_llm_openai(**kwargs):
+    # https://openai.com/api/pricing/
     kwargs.update(dict(
         model="gpt-3.5-turbo-instruct",
         temperature=0
