@@ -35,6 +35,7 @@ def init_llm(is_open_ai: bool = False, is_gpt2=True, is_ms=False, is_google=Fals
                 "max_length": 1024,
                 # 'max_new_tokens': 512,
                 "do_sample": True,
+                "truncation": True,
                 # "temperature": 0,
             },
         )
@@ -93,7 +94,7 @@ def init_llm(is_open_ai: bool = False, is_gpt2=True, is_ms=False, is_google=Fals
         )
 
     response = llm.invoke("Once upon a time")
-    print(response)
+    # print(response)
     assert len(response) >= 20
 
     # Option 1: Use this if you want the generation to involve some randomness, controlled by the temperature parameter.

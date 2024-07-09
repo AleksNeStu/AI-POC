@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import Iterator, Union, Optional, List
 from dotenv import load_dotenv, find_dotenv
 
-# Local
-from ml import init_llm
+# Local import
+from common import ml
 
 # Helpers
 from faker import Faker
@@ -93,13 +93,13 @@ CollectionDataType = Optional[Iterator[Document]]
 CollectionSplitType = Optional[Union[Iterator[Document], str]]
 
 use_paid_services = False
-sys.path.append("../..")
 _ = load_dotenv(find_dotenv())  # read local .env file
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 API_KEY_HUGGING_FACE = os.environ.get("API_KEY_HUGGING_FACE")
 # OPENAI_API_KEY = os.environ.get('API_KEY_OPEN_AI')
 openai.api_key = OPENAI_API_KEY
-current_dir = Path.cwd()
+current_dir = Path(__file__).resolve().parent
+
 current_dir_parent = current_dir.parent
 md_dir = current_dir_parent / "data/docs/md"
 pdf_dir = current_dir_parent / "data/docs/pdf/"
@@ -120,8 +120,9 @@ nlp_eng = spacy.load("en_core_web_md")
 embedding = HuggingFaceEmbeddings()
 # embedding = HuggingFaceEmbeddings(model_name="mixedbread-ai/mxbai-embed-large-v1")
 fake = Faker()
+vector_db = None
 
-llm = init_llm()
+llm = ml.init_llm()
 
 
 @dataclass
@@ -230,13 +231,13 @@ FasterWhisperParser.lazy_parse = lazy_parse_patched
 
 
 def dump_collection(collection: str = "collection_data"):
-    collection_file = f"{collection}.pkl"
+    collection_file = f"{current_dir}/{collection}.pkl"
     with open(collection_file, "wb") as f:
         pickle.dump(collection_data, f)
 
 
 def load_collection(collection: str = "collection_data"):
-    collection_file = f"{collection}.pkl"
+    collection_file = f"{current_dir}/{collection}.pkl"
     with open(collection_file, "rb") as f:
         res = pickle.load(f)
     return res
@@ -658,7 +659,7 @@ def add_to_db_batch(pdf_only: bool = False):
         add_to_db_mmr_text(vector_db)
 
 
-if __name__ == "__main__":
+def execute():
     load_docs(use_saved=True)
     get_targets()
     split_targets()
