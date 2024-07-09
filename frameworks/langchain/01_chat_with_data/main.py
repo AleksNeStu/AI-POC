@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Iterator, Union, Optional, List
 from dotenv import load_dotenv, find_dotenv
 
+# Local
+from ml import init_llm
 
 # Helpers
 from faker import Faker
@@ -23,6 +25,10 @@ import openai
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
+
+# Transformers
+from transformers import AutoTokenizer, AutoModelForCausalLM
+
 
 # LLM
 # from langchain.llms import OpenAI
@@ -111,55 +117,6 @@ nlp_eng = spacy.load('en_core_web_md')
 embedding = HuggingFaceEmbeddings()
 # embedding = HuggingFaceEmbeddings(model_name="mixedbread-ai/mxbai-embed-large-v1")
 fake = Faker()
-
-
-def init_llm():
-    # llm = OpenAI(model='gpt-3.5-turbo-instruct', temperature=0)
-
-    # https://huggingface.co/blog/langchain
-    # https://api.python.langchain.com/en/latest/llms/langchain_community.llms.huggingface_pipeline.HuggingFacePipeline.html
-    # https://huggingface.co/models
-
-
-    # llm = HuggingFacePipeline.from_model_id(
-    #     # model_id="microsoft/Phi-3-mini-4k-instruct",
-    #     model_id="gpt2",
-    #     task="text-generation",
-    #     pipeline_kwargs={
-    #         'max_length': 2500,
-    #         # "max_new_tokens": 10000,
-    #         # "temperature": 0,
-    #     },
-    #     # huggingfacehub_api_token=API_KEY_HUGGING_FACE,
-    #     # token=API_KEY_HUGGING_FACE
-    # )
-
-
-    # ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
-    # ov_llm = HuggingFacePipeline.from_model_id(
-    #     model_id="gpt2",
-    #     task="text-generation",
-    #     # backend="openvino",
-    #     # model_kwargs={"device": "CPU", "ov_config": ov_config},
-    #     pipeline_kwargs={"max_new_tokens": 10},
-    # )
-    llm = HuggingFacePipeline.from_model_id(
-        model_id="microsoft/Phi-3-mini-4k-instruct",
-        task="text-generation",
-        pipeline_kwargs={
-            "max_new_tokens": 1500,
-            # "top_k": 50,
-            # "temperature": 0.1,
-            'do_sample': False
-        },
-    )
-    # Option 1: Use this if you want the generation to involve some randomness, controlled by the temperature parameter.
-    # do_sample=True,  # Enable sampling
-    # temperature=0.1,  # Set the temperature for sampling
-
-    # Option 2: Use this if you prefer deterministic generation without randomness.
-    # do_sample=False,  # Ensure sampling is disabled
-    return llm
 
 llm = init_llm()
 
@@ -447,6 +404,7 @@ def create_db(db_dir: Path = db_dir, to_clean_dir: bool = False,
     db_dir_str = str(db_dir)
     if to_clean_dir and db_dir.exists():
         clean_dir(db_dir)
+        del vector_db
 
     if documents:
         vector_db = Chroma.from_documents(embedding=embedding, persist_directory=db_dir_str, documents=documents)
@@ -573,19 +531,27 @@ def test_filter_and_self_query_retriever(vector_db, run_qr: bool = False):
         document_content_description = "Lecture notes"
 
         # """Retriever that uses a vector store and an LLM to generate the vector store queries."""
-        retriever = SelfQueryRetriever.from_llm(
+        self_query_retriever = SelfQueryRetriever.from_llm(
             llm=llm,
             vectorstore=vector_db,
             document_contents=document_content_description,
             metadata_field_info=metadata_field_info,
             verbose=True
         )
-        # ValueError: Input length of input_ids is 1340, but `max_length` is set to 50. This can lead to unexpected behavior. You should consider increasing `max_length` or, better yet, setting `max_new_tokens`.
-        qn_4 = "what did they say about regression in the third lecture?"
+        # ValueError: Input length of input_ids is 1331, but `max_length` is set to 50. This can lead to unexpected behavior. You should consider increasing `max_length` or, better yet, setting `max_new_tokens`.
 
-        # docs_4 = retriever.get_relevant_documents(qn_4) - Deprecated
-        docs_4 = retriever.invoke(qn_4, prompt_text='test')
-        docs_meta_4 = [d.metadata for d in docs_4]
+        # This happens because the input_ids (tokenized representation of the input text) have a length of 1331,
+        # which is beyond the model's capacity.
+        qn_4 = "what did they say about regression in the third lecture?"
+        qn_4 = "what did"
+
+
+        db_docs = vector_db.get().get('documents')
+        len_db_docs = len(db_docs) if db_docs else 0
+        docs_4 = self_query_retriever.get_relevant_documents(qn_4)
+        #docs_4 = self_query_retriever.invoke(qn_4)
+        pretty_print_docs(docs_4)
+
 
 def pretty_print_docs(docs):
     print(f"\n{'-' * 100}\n".join([f"Document {i+1}:\n\n" + d.page_content for i, d in enumerate(docs)]))
@@ -595,17 +561,30 @@ def test_contextual_compression_retriever(vector_db):
     # Information most relevant to a query may be buried in a document with a lot of irrelevant text.
     # Passing that full document through your application can lead to more expensive LLM calls and poorer responses.
     # Contextual compression is meant to fix this.
+    compressor = LLMChainExtractor.from_llm(llm)
+    compression_retriever = ContextualCompressionRetriever(
+        base_compressor=compressor,
+        base_retriever=vector_db.as_retriever()
+    )
+    qn = "what did they say about matlab?"
+    max_length = len(vector_db.get().get('documents')) + 100
+    compressed_docs = compression_retriever.invoke(qn)
+    pretty_print_docs(compressed_docs)
+
+def test_mix_mmr_and_compression(vector_db):
     pass
 
 
-
-def add_to_db_pdf_split(vector_db):
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1500,
-        chunk_overlap=150
-    )
-    documents = text_splitter.split_documents(collection_data.pdfs_data)
-    add_to_db(vector_db, documents=documents)
+def add_to_db_pdf(vector_db, to_split: bool = False):
+    if to_split:
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1500,
+            chunk_overlap=150
+        )
+        documents = text_splitter.split_documents(collection_data.pdfs_data)
+        add_to_db(vector_db, documents=documents)
+    else:
+        add_to_db(vector_db, documents=collection_data.pdfs_data)
 
 
 def add_to_db_fake_texts(vector_db):
@@ -622,13 +601,14 @@ def add_to_db_mmr_text(vector_db):
     add_to_db(vector_db, texts=texts)
 
 
-def test_cases(vector_db):
+def test_cases(vector_db, to_clean_dir:bool = False):
     # test_similarity(vector_db)
     # test_embedding_data(vector_db)
     # test_got_distinct_res(vector_db)
     # test_mmr(vector_db)
-    # test_filter_and_self_query_retriever(vector_db)
+    test_filter_and_self_query_retriever(vector_db, run_qr=True)
     test_contextual_compression_retriever(vector_db)
+    test_mix_mmr_and_compression(vector_db)
 
 
 def add_dirty_data_to_collection():
@@ -637,10 +617,11 @@ def add_dirty_data_to_collection():
 
 
 
-def add_to_db_batch():
-    add_to_db_pdf_split(vector_db)
-    add_to_db_fake_texts(vector_db)
-    add_to_db_mmr_text(vector_db)
+def add_to_db_batch(pdf_only: bool = False):
+    add_to_db_pdf(vector_db)
+    if not pdf_only:
+        add_to_db_fake_texts(vector_db)
+        add_to_db_mmr_text(vector_db)
 
 
 if __name__ == '__main__':
@@ -650,6 +631,6 @@ if __name__ == '__main__':
     # add_dirty_data_to_collection()
     vector_db = init_db(to_clean_dir=False)
     print(f'DB collection count: {vector_db._collection.count()}')
-    # add_to_db_batch()
+    # add_to_db_batch(pdf_only=True)
     print(f'DB collection count: {vector_db._collection.count()}')
-    test_cases(vector_db)
+    test_cases(vector_db, to_clean_dir=False)

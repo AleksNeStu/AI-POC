@@ -51,6 +51,8 @@ lark = "^1.1.9"
 optimum = "^1.21.2"
 openvino = "^2024.2.0"
 nncf = "^2.11.0"
+optimum-openvino = "^0.0.2"
+onnx = "^1.16.1"
 
 
 [tool.poetry.group.dev.dependencies]
