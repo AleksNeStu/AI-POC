@@ -6,9 +6,9 @@ from PIL.Image import Image
 import os
 
 # Token https://huggingface.co/settings/tokens
-API_KEY_HUGGING_FACE = os.environ.get("API_KEY_HUGGING_FACE")
+HUGGINGFACEHUB_API_TOKEN = os.environ.get("HUGGINGFACEHUB_API_TOKEN")
 token_path = Path("token.txt")
-token = token_path.read_text().strip() or API_KEY_HUGGING_FACE
+token = token_path.read_text().strip() or HUGGINGFACEHUB_API_TOKEN
 
 # Device (Cuda GPU or CPU)
 device = "cuda" if torch.cuda.is_available() else "cpu"

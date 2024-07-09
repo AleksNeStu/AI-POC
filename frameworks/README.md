@@ -129,4 +129,15 @@ Summary:
 Fine-tuning leverages pre-trained models to improve performance on specific tasks or domains with less data and computational resources compared to training from scratch. It is a powerful technique in machine learning and deep learning for transferring knowledge from general domains to specific applications, facilitating faster development and deployment of effective AI solutions.
 
 
+# Parameters
+Understanding Parameters in Neural Networks:
+Parameters: In a neural network, parameters are the variables that the model learns from the data during the training process. These parameters include weights and biases that determine how the model transforms input data into meaningful outputs.
+
+Size and Complexity: The number of parameters directly correlates with the model's complexity and capacity to learn intricate patterns from data. Larger models with more parameters can potentially capture more nuanced relationships and exhibit better performance on complex tasks.
+
+What Does "1.5B Parameters" Mean?
+Billion Parameters: "1.5B" stands for 1.5 billion parameters. This indicates a very large model with a significant number of weights and biases that need to be trained.
+
+Model Size: The size of the model in terms of parameters often correlates with its memory and computational requirements. Larger models typically require more memory (RAM) and computational power (CPU/GPU) to operate efficiently.
+
 

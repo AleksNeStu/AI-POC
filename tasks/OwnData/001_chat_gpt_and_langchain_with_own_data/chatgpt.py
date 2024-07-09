@@ -4,19 +4,18 @@ import sys
 from langchain.chains import ConversationalRetrievalChain
 from langchain.indexes import VectorstoreIndexCreator
 from langchain.indexes.vectorstore import VectorStoreIndexWrapper
-from langchain_community.chat_models import ChatOpenAI, ChatHuggingFace
 # https://python.langchain.com/docs/integrations/document_loaders/
 from langchain_community.document_loaders import DirectoryLoader
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
 
-
+from langchain_community.chat_models import ChatOpenAI, ChatHuggingFace
 from langchain_community.llms.huggingface_endpoint import HuggingFaceEndpoint
 
 import constants
 
-os.environ["OPENAI_API_KEY"] = constants.API_KEY
+os.environ["OPENAI_API_KEY"] = constants.OPENAI_API_KEY
 use_free = True
 # Enable to save to disk & reuse the model (for repeated queries on the same data)
 PERSIST = False

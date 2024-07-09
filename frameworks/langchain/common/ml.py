@@ -5,13 +5,18 @@ from langchain_openai import OpenAI
 from transformers import AutoModelForCausalLM
 from transformers import pipeline
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from langchain_community.chat_models import ChatOpenAI
+
+from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
+
+from langchain_huggingface import ChatHuggingFace
+from langchain_huggingface import HuggingFaceEndpoint
 
 # https://huggingface.co/blog/langchain
 # https://api.python.langchain.com/en/latest/llms/langchain_community.llms.huggingface_pipeline.HuggingFacePipeline.html
 # https://huggingface.co/models
 # https://huggingface.co/docs/transformers/v4.17.0/en/quicktour
 
-from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 
 # Custom wrapper for the Hugging Face pipeline
 DISTIL_GPT2 = 'distilgpt2'
@@ -28,11 +33,8 @@ def calc_tokens(model_name, prompt):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     # Tokenize the prompt and count tokens
     tokens_enc = tokenizer.encode(prompt, add_special_tokens=True)
-
     tokens_ids = tokenizer(prompt, return_tensors='pt', truncation=False).input_ids[0]
-
     input_ids = tokenizer.encode(prompt, add_special_tokens=True, truncation=True, max_length=1024)
-
     return len(input_ids)
 
 def get_pipeline(model_name: str = DISTIL_GPT2):
@@ -49,6 +51,23 @@ def get_llm_openai(**kwargs):
     ))
     llm = OpenAI(**kwargs)
     return llm
+
+def get_llm_gpt2_medium(**kwargs):
+    # https://huggingface.co/openai-community/gpt2-medium
+    kwargs.update(dict(
+        model_id="gpt2-medium",
+        task="text-generation",
+        pipeline_kwargs={
+            # "max_length": 1025,
+            # 'max_new_tokens': 50,
+            "do_sample": True,
+            # "truncation": True,
+            # "temperature": 0,
+        },
+    ))
+    llm = HuggingFacePipeline.from_model_id(**kwargs)
+    return llm
+
 
 def get_llm_distilgpt2(**kwargs):
     # temperature=0.1 involve some randomness, controlled by the temperature parameter
@@ -99,13 +118,44 @@ def get_llm_ms(**kwargs):
     return llm
 
 
-qn1 = "what did"
-qn1 = "what did they say about regression in the third lecture?"
-ct = calc_tokens(DISTIL_GPT2, qn1)
-f = 1
-#
-#
+def get_llm_chat_openai(**kwargs):
+    kwargs.update(dict(
+        model="gpt-3.5-turbo",
+        temperature=0
+    ))
+    llm = ChatOpenAI(**kwargs)
+    return llm
+
+
+def get_llm_zephyr(**kwargs):
+    kwargs.update(dict(
+        model_id="HuggingFaceH4/zephyr-7b-beta",
+        task="text-generation",
+        pipeline_kwargs=dict(
+            max_new_tokens=512,
+            do_sample=False,
+            repetition_penalty=1.03,
+        ),
+    ))
+    llm = HuggingFacePipeline.from_model_id(**kwargs)
+    return llm
+
+
+def get_llm_chat_hf(llm, **kwargs):
+    kwargs.update(dict(
+        llm=llm
+    ))
+    llm = ChatHuggingFace(**kwargs)
+    return llm
+
+
+
+
+# qn1 = "what did they say about regression in the third lecture?"
+# ct = calc_tokens(DISTIL_GPT2, qn1)
+
 # llm = get_llm_distilgpt2()
 # response = llm.invoke("Once upon a time")
 # print(response)
 # assert len(response) >= 20
+

@@ -35,6 +35,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 # from langchain.llms import OpenAI
 from langchain_openai import OpenAI
 from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline
+from langchain.chains import RetrievalQA
 
 # Langchain Document loaders
 from langchain_community.document_loaders import NotionDirectoryLoader
@@ -77,8 +78,9 @@ from langchain_core.documents import Document
 #     OpenVINOEmbeddings,
 #     SpacyEmbeddings
 # )
+from langchain_community.embeddings import OpenAIEmbeddings
 from langchain_huggingface import HuggingFaceEmbeddings
-
+from langchain_community.chat_models import ChatOpenAI
 
 # Langchain store
 # TODO: Test rest
@@ -87,7 +89,8 @@ from langchain_community.vectorstores import Chroma
 
 # Langchain helpers
 from langchain.retrievers import (
-    SelfQueryRetriever, ContextualCompressionRetriever, SVMRetriever, TFIDFRetriever)
+    SelfQueryRetriever, ContextualCompressionRetriever)
+from langchain_community.retrievers import SVMRetriever, TFIDFRetriever
 from langchain.retrievers.document_compressors import LLMChainExtractor
 from langchain.chains.query_constructor.base import AttributeInfo
 
@@ -95,11 +98,12 @@ from langchain.chains.query_constructor.base import AttributeInfo
 CollectionDataType = Optional[Iterator[Document]]
 CollectionSplitType = Optional[Union[Iterator[Document], str]]
 
-use_paid_services = False
+use_paid_services = True
 _ = load_dotenv(find_dotenv())  # read local .env file
+
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-API_KEY_HUGGING_FACE = os.environ.get("API_KEY_HUGGING_FACE")
-# OPENAI_API_KEY = os.environ.get('API_KEY_OPEN_AI')
+HUGGINGFACEHUB_API_TOKEN = os.environ.get("HUGGINGFACEHUB_API_TOKEN")
+
 openai.api_key = OPENAI_API_KEY
 current_dir = Path(__file__).resolve().parent
 
@@ -113,6 +117,7 @@ db_dir = current_dir / "db"
 pdf_1_path = pdf_dir / "MachineLearning-Lecture01.pdf"
 pdf_2_path = pdf_dir / "MachineLearning-Lecture02.pdf"
 pdf_3_path = pdf_dir / "MachineLearning-Lecture03.pdf"
+pdf_langchain = pdf_dir / "langchain.pdf"
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -121,13 +126,22 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 compute_type = "float16" if device == "cuda" else "int8"
 nlp_eng = spacy.load("en_core_web_md")
 
-embedding = HuggingFaceEmbeddings()
-# embedding = HuggingFaceEmbeddings(model_name="mixedbread-ai/mxbai-embed-large-v1")
-fake = Faker()
-vector_db = None
 
-llm = ml.get_llm_distilgpt2()
-# llm = ml.hugging_face_model
+fake = Faker()
+
+if use_paid_services:
+    embedding = OpenAIEmbeddings()
+    llm = OpenAI(model="gpt-3.5-turbo-instruct", temperature=0)
+    llm_chat = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
+    compressor = LLMChainExtractor.from_llm(llm)
+else:
+    embedding = HuggingFaceEmbeddings()
+    # embedding = HuggingFaceEmbeddings(model_name="mixedbread-ai/mxbai-embed-large-v1")
+    # llm = ml.get_llm_distilgpt2()
+    llm = ml.get_llm_gpt2_medium()
+    llm_chat = ml.get_llm_chat_hf(llm)
+    compressor = LLMChainExtractor.from_llm(llm)
+    # llm = ml.hugging_face_model
 
 
 @dataclass
@@ -268,6 +282,11 @@ def get_notions(notions_path: Path = md_dir):
     collection_data.notions_data = notions_data
     return notions_data
 
+def get_db_doc_count(vector_db, to_print = True):
+    res = vector_db._collection.count()
+    if to_print:
+        print(f"DB collection count: {res}")
+    return res
 
 # PDF
 def get_pdf(pdf_path: Path = pdf_1_path):
@@ -420,15 +439,18 @@ def split_targets():
     md_header_splits = markdown_splitter.split_text(notion_md_targets_txt)
 
 
-def get_db(db_dir: Path = db_dir):
-    db_dir_str = str(db_dir)
-    if db_dir.exists() and (db_dir / "chroma.sqlite3").exists():
-        vector_db = Chroma(persist_directory=db_dir_str, embedding_function=embedding)
-        return vector_db
+def get_db(db_dir: Path | None = db_dir, name: str = 'langchain'):
+    if db_dir:
+        db_dir_str = str(db_dir)
+        if db_dir.exists() and (db_dir / "chroma.sqlite3").exists():
+            vector_db = Chroma(persist_directory=db_dir_str, embedding_function=embedding)
+            return vector_db
+    mem_vector_db = Chroma(embedding_function=embedding)
+    return mem_vector_db
 
 
 def create_db(
-    db_dir: Path = db_dir, to_clean_dir: bool = False, documents: List[Document] = None
+        name:str, db_dir: Path | None = db_dir, to_clean_dir: bool = False, documents: List[Document] = None
 ):
     # Save to db
     vector_db = None
@@ -439,10 +461,11 @@ def create_db(
 
     if documents:
         vector_db = Chroma.from_documents(
-            embedding=embedding, persist_directory=db_dir_str, documents=documents
+            embedding=embedding, persist_directory=db_dir_str, documents=documents,
+            collection_name=name
         )
     else:
-        vector_db = Chroma(persist_directory=db_dir_str, embedding_function=embedding)
+        vector_db = Chroma(persist_directory=db_dir_str, embedding_function=embedding, collection_name=name)
 
     return vector_db
 
@@ -470,15 +493,15 @@ def max_marginal_relevance_search(vector_db, qn: str, k=5, fetch_k=3):
 
 
 # TODO: Test https://github.com/chroma-core/chroma
-def init_db(documents: List[Document] = None, to_clean_dir: bool = False):
-    vector_db = get_db(db_dir)
+def init_db(name: str = 'langchain', documents: List[Document] = None, to_clean_dir: bool = False):
+    vector_db = get_db(db_dir, name)
     if not vector_db or to_clean_dir:
-        vector_db = create_db(documents=documents, to_clean_dir=to_clean_dir)
+        vector_db = create_db(name=name, documents=documents, to_clean_dir=to_clean_dir)
 
     return vector_db
 
 
-def add_to_db(vector_db :Chroma, documents: List[Document] = None, texts: List[str] = None):
+def add_to_db(vector_db: Chroma, documents: List[Document] = None, texts: List[str] = None):
     if documents:
         vector_db.add_documents(documents)
     if texts:
@@ -583,7 +606,6 @@ class TestMLCases:
         # Information most relevant to a query may be buried in a document with a lot of irrelevant text.
         # Passing that full document through your application can lead to more expensive LLM calls and poorer responses.
         # Contextual compression is meant to fix this.
-        compressor = LLMChainExtractor.from_llm(llm)
         compression_retriever = ContextualCompressionRetriever(
             base_compressor=compressor, base_retriever=vector_db.as_retriever()
         )
@@ -595,10 +617,9 @@ class TestMLCases:
 
     @staticmethod
     def test_mix_mmr_and_compression(vector_db):
-        compressor = LLMChainExtractor.from_llm(llm)
         compression_retriever = ContextualCompressionRetriever(
             base_compressor=compressor,
-            base_retriever=vector_db.as_retriever(search_type = "mmr")
+            base_retriever=vector_db.as_retriever(search_type="mmr")
         )
         question = "what did they say about matlab?"
         compressed_docs = compression_retriever.get_relevant_documents(question)
@@ -609,7 +630,6 @@ class TestMLCases:
     def test_other_retrievers(vector_db):
         # Vectordb as not the only kind of tool to retrieve documents.
         # We have also TF-IDF or SVM.
-        compressor = LLMChainExtractor.from_llm(llm)
         pages = collection_data.pdfs_data
         all_page_text=[p.page_content for p in pages]
         joined_page_text=" ".join(all_page_text)
@@ -628,9 +648,6 @@ class TestMLCases:
         docs_tfidf=tfidf_retriever.get_relevant_documents(qn2)
         res2 = docs_tfidf[0]
 
-        f = 1
-
-
     @staticmethod
     def test_embedding_data(vector_db):
         # An embedding function is a function that converts your data (in this case, probably text data) into a numerical vector representation that can be used for similarity comparisons. This is a key part of many machine learning and information retrieval systems.
@@ -639,7 +656,6 @@ class TestMLCases:
         pdf_page_target_em = embedding.embed_query(pdf_page_target)
         notion_md_target_em = embedding.embed_query(notion_md_target)
 
-
     @staticmethod
     def test_similarity(vector_db):
         fake_left = fake.text(max_nb_chars=199)
@@ -647,7 +663,6 @@ class TestMLCases:
         txt_target_fake = fake_left + txt_target + fake_right
         sim_texts = are_texts_similar(txt_target, txt_target_fake)
         assert sim_texts == False
-
 
     @staticmethod
     def test_got_distinct_res(vector_db):
@@ -663,12 +678,34 @@ class TestMLCases:
         # assert content_1[0] == content_1[1]
         # assert len(set(meta_2)) < len(meta_1)
 
+    @staticmethod
+    def test_qa(vector_db):
+        in_memory_db = get_db(db_dir=None, name='in_memory')
+        pdf_f_docs = get_pdf(pdf_3_path)
+        get_db_doc_count(in_memory_db)
+        add_to_db(in_memory_db, pdf_f_docs)
+        get_db_doc_count(in_memory_db)
+
+        qa_chain = RetrievalQA.from_chain_type(
+            llm_chat,
+            retriever=in_memory_db.as_retriever())
+        qn = "What is a topic?"
+
+        res = qa_chain({"query": qn})
+        # assert res == (
+        #     "The topics discussed in the context provided include locally weighted regression, linear regression, logistic regression, the perceptron algorithm, and Newton's method."
+        # )
+
+
+
 def pretty_print_docs(docs):
-    print(
+    res = (
         f"\n{'-' * 100}\n".join(
             [f"Document {i+1}:\n\n" + d.page_content for i, d in enumerate(docs)]
         )
     )
+    # print(res)
+    return res
 
 
 def add_to_db_pdf(vector_db, to_split: bool = False):
@@ -696,16 +733,24 @@ def add_to_db_mmr_text(vector_db):
     add_to_db(vector_db, texts=texts)
 
 
-def test_cases(vector_db, to_clean_dir: bool = False):
-    TestMLCases.test_get_and_split_targets(vector_db)  # test
-    TestMLCases.test_similarity(vector_db)
-    TestMLCases.test_embedding_data(vector_db)
-    TestMLCases.test_got_distinct_res(vector_db)
-    TestMLCases.test_mmr(vector_db)
-    TestMLCases.test_filter_and_self_query_retriever(vector_db, run_qr=True)
-    TestMLCases.test_contextual_compression_retriever(vector_db)
-    TestMLCases.test_mix_mmr_and_compression(vector_db)
-    TestMLCases.test_other_retrievers(vector_db)
+def run_tests_1(vector_db, to_clean_dir: bool = False):
+    # TestMLCases.test_get_and_split_targets(vector_db)  # test
+    # TestMLCases.test_similarity(vector_db)
+    # TestMLCases.test_embedding_data(vector_db)
+    # TestMLCases.test_got_distinct_res(vector_db)
+    # TestMLCases.test_mmr(vector_db)
+    # TestMLCases.test_filter_and_self_query_retriever(vector_db, run_qr=True)
+    # TestMLCases.test_contextual_compression_retriever(vector_db)
+    # TestMLCases.test_mix_mmr_and_compression(vector_db)
+    # TestMLCases.test_other_retrievers(vector_db)
+    TestMLCases.test_qa(vector_db)
+
+def add_to_db_batch_2(vector_db):
+    g = 1
+
+
+def run_tests_2(vector_db):
+    pass
 
 
 def add_dirty_data_to_collection():
@@ -713,19 +758,22 @@ def add_dirty_data_to_collection():
     collection_data.pdfs_data.extend(extra_pdf_data)
 
 
-def add_to_db_batch(vector_db, pdf_only: bool = False, run: bool = True):
+def add_to_db_batch_1(vector_db, pdf_only: bool = False, run: bool = True):
     if run:
-        print(f"DB collection count: {vector_db._collection.count()}")
+        get_db_doc_count(vector_db)
         add_to_db_pdf(vector_db)
         if not pdf_only:
             add_to_db_fake_texts(vector_db)
             add_to_db_mmr_text(vector_db)
 
-
-def execute():
+def execute(tests_1 = True, tests_2 = True):
     load_docs(use_saved=True, add_duty_data=True)
-    vector_db = init_db(to_clean_dir=False)
-    # run False DB with is ready
-    add_to_db_batch(vector_db, pdf_only=True, run=False)
-    print(f"DB collection count: {vector_db._collection.count()}")
-    test_cases(vector_db, to_clean_dir=False)
+    if tests_1:
+        vector_db_1 = init_db(name='tests_1', to_clean_dir=False)
+        # run True 1 time only
+        add_to_db_batch_1(vector_db_1, pdf_only=True, run=False)
+        get_db_doc_count(vector_db_1)
+        run_tests_1(vector_db_1, to_clean_dir=False)
+    elif tests_2:
+        vector_db_2 = init_db(name='tests_2', to_clean_dir=False)
+        run_tests_2(vector_db=vector_db_2)

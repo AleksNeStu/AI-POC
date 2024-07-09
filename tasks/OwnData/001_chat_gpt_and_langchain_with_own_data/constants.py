@@ -2,4 +2,4 @@
 # and rename this file to constants.py.
 import os
 
-API_KEY = os.environ.get("API_KEY_OPEN_AI")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")

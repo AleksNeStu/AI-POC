@@ -23,16 +23,16 @@ def _is_interactive():
 
 is_interactive = _is_interactive()
 
-API_KEY_HUGGING_FACE = os.environ.get("API_KEY_HUGGING_FACE")
+HUGGINGFACEHUB_API_TOKEN = os.environ.get("HUGGINGFACEHUB_API_TOKEN")
 
 # https://huggingface.co/docs/api-inference/detailed_parameters#object-detection-task
 # https://huggingface.co/facebook/detr-resnet-50
 # Detection TRansformer (DETR) model trained end-to-end on COCO 2017 object detection (118k annotated images).
 API_URL_CV = "https://api-inference.huggingface.co/models/facebook/detr-resnet-50"
-HEADERS_CV = {"Authorization": f"Bearer {API_KEY_HUGGING_FACE}"}
+HEADERS_CV = {"Authorization": f"Bearer {HUGGINGFACEHUB_API_TOKEN}"}
 # https://huggingface.co/Helsinki-NLP/opus-mt-en-es
 API_URL_NLP = "https://api-inference.huggingface.co/models/Helsinki-NLP/opus-mt-en-fr"
-HEADERS_NLP = {"Authorization": f"Bearer {API_KEY_HUGGING_FACE}"}
+HEADERS_NLP = {"Authorization": f"Bearer {HUGGINGFACEHUB_API_TOKEN}"}
 
 
 @retry(
