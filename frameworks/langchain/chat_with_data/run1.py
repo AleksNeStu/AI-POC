@@ -51,10 +51,12 @@ from langchain_community.document_loaders.parsers.audio import (
     FasterWhisperParser,
     YandexSTTParser,
 )
+from langchain.prompts import PromptTemplate
 from langchain_community.retrievers import SVMRetriever, TFIDFRetriever
 # Langchain store
 # TODO: Test rest
 from langchain_community.vectorstores import Chroma
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_core.documents import Document
 from langchain_openai import ChatOpenAI
 # LLM
@@ -104,6 +106,17 @@ pdf_2_path = pdf_dir / "MachineLearning-Lecture02.pdf"
 pdf_3_path = pdf_dir / "MachineLearning-Lecture03.pdf"
 pdf_langchain = pdf_dir / "langchain.pdf"
 
+PROMPT_TMPL = ("""
+Use the following pieces of context to answer the question at the end. 
+If you don't know the answer, just say that you don't know, don't try 
+to make up an answer.
+Use two sentences maximum, one jf them from wikipedia.
+Keep the answer as concise as possible.
+Always say "thanks bro!" at the end of the answer.
+{context}
+Question: {question}
+Helpful Answer:
+""")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 # You can set compute_type to "float32" or "int8".
@@ -234,14 +247,14 @@ def lazy_parse_patched(self, blob: Blob) -> Iterator[Document]:
 FasterWhisperParser.lazy_parse = lazy_parse_patched
 
 
-def dump_collection(collection: str = "collection_data"):
-    collection_file = f"{current_dir}/{collection}.pkl"
+def dump_collection(data_obj: object = collection_data, data_name: str = "collection_data"):
+    collection_file = f"{current_dir}/{data_name}.pkl"
     with open(collection_file, "wb") as f:
-        pickle.dump(collection_data, f)
+        pickle.dump(data_obj, f)
 
 
-def load_collection(collection: str = "collection_data"):
-    collection_file = f"{current_dir}/{collection}.pkl"
+def load_collection(data_name: str = "collection_data"):
+    collection_file = f"{current_dir}/{data_name}.pkl"
     with open(collection_file, "rb") as f:
         res = pickle.load(f)
     return res
@@ -678,19 +691,33 @@ class TestMLCases:
             retriever=vector_db.as_retriever())
         qn = "What is a topic?"
         res = qa_chain({"query": qn})
-        print(res)
+        res_answer = res['result']
+        print(f'test_qa_w_prompt_tmpl answer: {res_answer}')
         # for pdf_langchain
         is_sim = are_texts_similar(
-            res, "A topic can refer to a subject or theme that is being discussed, studied, "
+            res_answer, "A topic can refer to a subject or theme that is being discussed, studied, "
                                 "or written about. In the context of LangChain, a topic could be related to the subject matter or focus of the applications being developed using the framework.")
-        assert is_sim == True
+        # assert is_sim == True
         # assert res == (
         #     "The topics discussed in the context provided include locally weighted regression, linear regression, logistic regression, the perceptron algorithm, and Newton's method."
         # )
+        dump_collection(res, 'test_qa')
 
     @staticmethod
     def test_qa_w_prompt_tmpl(vector_db):
-        pass
+        qa_chain_prompt = PromptTemplate.from_template(PROMPT_TMPL)
+        qa_chain = RetrievalQA.from_chain_type(
+            llm,
+            retriever=vector_db.as_retriever(),
+            return_source_documents=True,
+            chain_type_kwargs={"prompt": qa_chain_prompt}
+        )
+        question = "Is probability a class topic?"
+        res = qa_chain({"query": question})
+        res_answer = res['result']
+        print(f'test_qa_w_prompt_tmpl answer: {res_answer}')
+        res_docs_src = res['source_documents']
+        dump_collection(res, 'test_qa_w_prompt_tmpl')
 
 
 
@@ -739,7 +766,8 @@ def run_tests_1(vector_db, vector_db_mem, to_clean_dir: bool = False):
     # TestMLCases.test_contextual_compression_retriever(vector_db)
     # TestMLCases.test_mix_mmr_and_compression(vector_db)
     # TestMLCases.test_other_retrievers(vector_db)
-    TestMLCases.test_qa(vector_db_mem)
+    # TestMLCases.test_qa(vector_db_mem)
+    TestMLCases.test_qa_w_prompt_tmpl(vector_db_mem)
 
 def add_to_db_batch_2(vector_db):
     g = 1

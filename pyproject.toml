@@ -56,6 +56,7 @@ onnx = "^1.16.1"
 datasets = "^2.20.0"
 g4f = "^0.3.2.1"
 curl-cffi = "^0.7.0"
+streamlit = "^1.36.0"
 
 
 [tool.poetry.group.dev.dependencies]
