@@ -1,29 +1,25 @@
-# Ref: https://learn.deeplearning.ai/courses/langchain-chat-with-your-data/
-
-# Python
 import os
 import pickle
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterator, Union, Optional, List
+from uuid import uuid4
 
 import numpy as np
 import openai
-# ML
 # python -m spacy download en_core_web_md
 import spacy
 import torch
 from dotenv import load_dotenv, find_dotenv
-# Helpers
 from faker import Faker
 from langchain.chains import RetrievalQA
 from langchain.chains.query_constructor.base import AttributeInfo
-# Langchain helpers
+from langchain.globals import set_debug
+from langchain.prompts import PromptTemplate
 from langchain.retrievers import (
     SelfQueryRetriever, ContextualCompressionRetriever)
 from langchain.retrievers.document_compressors import LLMChainExtractor
-# Langchain text splitter
 from langchain.text_splitter import (
     RecursiveCharacterTextSplitter,
     CharacterTextSplitter,
@@ -36,33 +32,26 @@ from langchain.text_splitter import (
     # NLTKTextSplitter,
     # SpacyTextSplitter,
 )
-# Langchain Document loaders
 from langchain_community.document_loaders import NotionDirectoryLoader
 from langchain_community.document_loaders import PyPDFLoader, PyPDFDirectoryLoader
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_community.document_loaders import YoutubeAudioLoader
-# Langchain Document loaders help
 from langchain_community.document_loaders.blob_loaders import Blob
 from langchain_community.document_loaders.generic import GenericLoader
-# Langchain Document loaders Audio
 from langchain_community.document_loaders.parsers.audio import (
     OpenAIWhisperParser,
     OpenAIWhisperParserLocal,
     FasterWhisperParser,
     YandexSTTParser,
 )
-from langchain.prompts import PromptTemplate
-from langchain_community.retrievers import SVMRetriever, TFIDFRetriever
-# Langchain store
-# TODO: Test rest
-from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.retrievers import SVMRetriever, TFIDFRetriever
+from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
+from langchain_core.tracers.context import tracing_v2_enabled
 from langchain_openai import ChatOpenAI
-# LLM
 # from langchain.llms import OpenAI
 from langchain_openai import OpenAI
-# Langchain embeddings
 # TODO: Test rest of the embeddings
 # from langchain.embeddings import (
 #     HuggingFaceEmbeddings,     # Deprecated
@@ -73,14 +62,9 @@ from langchain_openai import OpenAI
 from langchain_openai import OpenAIEmbeddings
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-# Network
 from yarl import URL
 
-# Local import
 from common import ml
-
-# Transformers
-
 
 CollectionDataType = Optional[Iterator[Document]]
 CollectionSplitType = Optional[Union[Iterator[Document], str]]
@@ -90,6 +74,9 @@ _ = load_dotenv(find_dotenv())  # read local .env file
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 HUGGINGFACEHUB_API_TOKEN = os.environ.get("HUGGINGFACEHUB_API_TOKEN")
+LANGCHAIN_API_KEY = os.environ.get("LANGCHAIN_API_KEY")
+
+
 
 openai.api_key = OPENAI_API_KEY
 current_dir = Path(__file__).resolve().parent
@@ -684,15 +671,20 @@ class TestMLCases:
         # assert len(set(meta_2)) < len(meta_1)
 
     @staticmethod
-    def test_qa(vector_db):
+    def test_qa(vector_db, load_res = False, chain_type = 'stuff'):
+        t_name = TestMLCases.test_qa.__name__
+        if load_res:
+            res = load_collection(t_name)
+            return res
+
         qa_chain = RetrievalQA.from_chain_type(
             llm_chat,
-            chain_type="stuff",
+            chain_type=chain_type,
             retriever=vector_db.as_retriever())
         qn = "What is a topic?"
         res = qa_chain({"query": qn})
         res_answer = res['result']
-        print(f'test_qa_w_prompt_tmpl answer: {res_answer}')
+        print(f'{t_name} answer: {res_answer}')
         # for pdf_langchain
         is_sim = are_texts_similar(
             res_answer, "A topic can refer to a subject or theme that is being discussed, studied, "
@@ -701,23 +693,80 @@ class TestMLCases:
         # assert res == (
         #     "The topics discussed in the context provided include locally weighted regression, linear regression, logistic regression, the perceptron algorithm, and Newton's method."
         # )
-        dump_collection(res, 'test_qa')
+        dump_collection(res, t_name)
+        return res
 
     @staticmethod
-    def test_qa_w_prompt_tmpl(vector_db):
+    def test_debug_qa_diff_chain_types(
+            vector_db, load_res = False, chain_type ='stuff'):
+        # console
+        t_name = TestMLCases.test_debug_qa_diff_chain_types.__name__
+        if load_res:
+            res = load_collection(t_name)
+            return res
+
+        set_debug(True)
+        # remote web tool
+        # https://api.python.langchain.com/en/latest/tracers/langchain_core.tracers.context.tracing_v2_enabled.html
+        # https://www.langchain.com/langsmith)
+        # https://python.langchain.com/v0.1/docs/langsmith/walkthrough/
+        unique_id = uuid4().hex[0:8]
+        os.environ["LANGCHAIN_TRACING_V2"] = "true"
+        os.environ["LANGCHAIN_PROJECT"] = f"Tracing {t_name} - {unique_id}"
+        # os.environ["LANGCHAIN_ENDPOINT"] = "https://api.langchain.plus"
+        os.environ["LANGCHAIN_ENDPOINT"] = "https://api.smith.langchain.com"
+        os.environ["LANGCHAIN_API_KEY"] = LANGCHAIN_API_KEY
+
+        with tracing_v2_enabled(project_name="My Project"):
+            results = []
+            qn = "Is probability a class topic?"
+            qa_chain_mr = RetrievalQA.from_chain_type(
+                llm,
+                retriever=vector_db.as_retriever(),
+                chain_type="map_reduce"
+            )
+            res_mr = qa_chain_mr({"query": qn})
+            res_answer_mr = res_mr["result"]
+            results.append(res_mr)
+
+            qa_chain_refine = RetrievalQA.from_chain_type(
+                llm,
+                retriever=vector_db.as_retriever(),
+                chain_type="refine"
+            )
+            res_refine = qa_chain_refine({"query": qn})
+            res_answer_refine = res_refine["result"]
+            results.append(res_refine)
+
+            dump_collection(results, t_name)
+            return results
+
+
+
+
+
+    @staticmethod
+    def test_qa_w_prompt_tmpl(vector_db, load_res = False, chain_type = 'stuff'):
+        t_name = TestMLCases.test_qa_w_prompt_tmpl.__name__
+        if load_res:
+            res = load_collection(t_name)
+            return res
+
         qa_chain_prompt = PromptTemplate.from_template(PROMPT_TMPL)
         qa_chain = RetrievalQA.from_chain_type(
             llm,
             retriever=vector_db.as_retriever(),
+            chain_type=chain_type,
             return_source_documents=True,
             chain_type_kwargs={"prompt": qa_chain_prompt}
         )
         question = "Is probability a class topic?"
         res = qa_chain({"query": question})
         res_answer = res['result']
-        print(f'test_qa_w_prompt_tmpl answer: {res_answer}')
+        print(f'{t_name} answer: {res_answer}')
         res_docs_src = res['source_documents']
-        dump_collection(res, 'test_qa_w_prompt_tmpl')
+        dump_collection(res, t_name)
+        return res
 
 
 
@@ -766,8 +815,12 @@ def run_tests_1(vector_db, vector_db_mem, to_clean_dir: bool = False):
     # TestMLCases.test_contextual_compression_retriever(vector_db)
     # TestMLCases.test_mix_mmr_and_compression(vector_db)
     # TestMLCases.test_other_retrievers(vector_db)
-    # TestMLCases.test_qa(vector_db_mem)
-    TestMLCases.test_qa_w_prompt_tmpl(vector_db_mem)
+
+    res_10 = TestMLCases.test_qa(vector_db_mem, load_res=True)
+    # map_reduce more solve cause answer each qn individually for collection many docs
+    # res_11 = TestMLCases.test_qa(vector_db_mem, load_res=True, chain_type='map_reduce')
+    res_12 = TestMLCases.test_qa_w_prompt_tmpl(vector_db_mem, load_res=True)
+    res_13 = TestMLCases.test_debug_qa_diff_chain_types(vector_db_mem, load_res=True)
 
 def add_to_db_batch_2(vector_db):
     g = 1

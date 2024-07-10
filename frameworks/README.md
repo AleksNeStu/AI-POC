@@ -150,4 +150,12 @@ Experiment with our interactive Tokenizer tool(opens in a new window).
 
 Log in to your account and enter text into the Playground. The counter in the footer will display how many tokens are in your text.
 
+https://platform.openai.com/tokenizer
+
+
+# LangSmith
+
+https://python.langchain.com/v0.1/docs/langsmith/walkthrough/
+
+LangSmith makes it easy to debug, test, and continuously improve your LLM applications.
 

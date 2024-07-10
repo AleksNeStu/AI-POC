@@ -57,6 +57,10 @@ datasets = "^2.20.0"
 g4f = "^0.3.2.1"
 curl-cffi = "^0.7.0"
 streamlit = "^1.36.0"
+langsmith = "^0.1.84"
+langchainhub = "^0.1.20"
+pandas = "^2.2.2"
+duckduckgo-search = "^6.1.10"
 
 
 [tool.poetry.group.dev.dependencies]
