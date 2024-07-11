@@ -13,6 +13,7 @@ import spacy
 import torch
 from dotenv import load_dotenv, find_dotenv
 from faker import Faker
+import panel as pn  # GUI
 from langchain.chains import RetrievalQA
 from langchain.chains.query_constructor.base import AttributeInfo
 from langchain.globals import set_debug
@@ -38,12 +39,14 @@ from langchain_community.document_loaders import WebBaseLoader
 from langchain_community.document_loaders import YoutubeAudioLoader
 from langchain_community.document_loaders.blob_loaders import Blob
 from langchain_community.document_loaders.generic import GenericLoader
+from langchain.chains import ConversationalRetrievalChain
 from langchain_community.document_loaders.parsers.audio import (
     OpenAIWhisperParser,
     OpenAIWhisperParserLocal,
     FasterWhisperParser,
     YandexSTTParser,
 )
+from langchain.memory import ConversationBufferMemory
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.retrievers import SVMRetriever, TFIDFRetriever
 from langchain_community.vectorstores import Chroma
@@ -66,11 +69,14 @@ from yarl import URL
 
 from common import ml
 
+
+env_file = find_dotenv()
+load_dotenv(env_file, override=True)
+
 CollectionDataType = Optional[Iterator[Document]]
 CollectionSplitType = Optional[Union[Iterator[Document], str]]
 
 use_paid_services = True
-_ = load_dotenv(find_dotenv())  # read local .env file
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 HUGGINGFACEHUB_API_TOKEN = os.environ.get("HUGGINGFACEHUB_API_TOKEN")
@@ -705,7 +711,7 @@ class TestMLCases:
             res = load_collection(t_name)
             return res
 
-        set_debug(True)
+
         # remote web tool
         # https://api.python.langchain.com/en/latest/tracers/langchain_core.tracers.context.tracing_v2_enabled.html
         # https://www.langchain.com/langsmith)
@@ -716,6 +722,7 @@ class TestMLCases:
         # os.environ["LANGCHAIN_ENDPOINT"] = "https://api.langchain.plus"
         os.environ["LANGCHAIN_ENDPOINT"] = "https://api.smith.langchain.com"
         os.environ["LANGCHAIN_API_KEY"] = LANGCHAIN_API_KEY
+        set_debug(True)
 
         with tracing_v2_enabled(project_name="My Project"):
             results = []
@@ -739,7 +746,31 @@ class TestMLCases:
             results.append(res_refine)
 
             dump_collection(results, t_name)
+            os.environ["LANGCHAIN_TRACING_V2"] = "false"
+            set_debug(False)
             return results
+
+    @staticmethod
+    def test_debug_qa_w_history(
+            vector_db, load_res = False, memory_key ='chat_history'):
+        pn.extension()
+        memory = ConversationBufferMemory(
+            memory_key=memory_key,
+            return_messages=True
+        )
+        retriever=vector_db.as_retriever()
+        qa = ConversationalRetrievalChain.from_llm(
+            llm,
+            retriever=retriever,
+            memory=memory
+        )
+        qn1 = "Is probability a class topic?"
+        res1 = qa({"question": qn1})
+        res1_answer = res1['answer']
+        qn2 = "why are those prerequesites needed?"
+        res2 = qa({"question": qn2})
+        res2_answer = res2['answer']
+
 
 
 
@@ -821,6 +852,7 @@ def run_tests_1(vector_db, vector_db_mem, to_clean_dir: bool = False):
     # res_11 = TestMLCases.test_qa(vector_db_mem, load_res=True, chain_type='map_reduce')
     res_12 = TestMLCases.test_qa_w_prompt_tmpl(vector_db_mem, load_res=True)
     res_13 = TestMLCases.test_debug_qa_diff_chain_types(vector_db_mem, load_res=True)
+    res_14 = TestMLCases.test_debug_qa_w_history(vector_db_mem, load_res=True)
 
 def add_to_db_batch_2(vector_db):
     g = 1
