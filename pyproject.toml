@@ -61,6 +61,12 @@ langsmith = "^0.1.84"
 langchainhub = "^0.1.20"
 pandas = "^2.2.2"
 duckduckgo-search = "^6.1.10"
+panel = "^1.4.4"
+docarray = "^0.40.0"
+watchfiles = "^0.22.0"
+hvplot = "^0.10.0"
+jupyter-bokeh = "^4.0.5"
+ipynbname = "^2024.1.0.0"
 
 
 [tool.poetry.group.dev.dependencies]
