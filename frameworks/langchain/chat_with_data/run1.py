@@ -68,20 +68,13 @@ from sklearn.metrics.pairwise import cosine_similarity
 from yarl import URL
 
 from common import ml
+from common.cfg import *
 
-
-env_file = find_dotenv()
-load_dotenv(env_file, override=True)
 
 CollectionDataType = Optional[Iterator[Document]]
 CollectionSplitType = Optional[Union[Iterator[Document], str]]
 
 use_paid_services = True
-
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-HUGGINGFACEHUB_API_TOKEN = os.environ.get("HUGGINGFACEHUB_API_TOKEN")
-LANGCHAIN_API_KEY = os.environ.get("LANGCHAIN_API_KEY")
-
 
 
 openai.api_key = OPENAI_API_KEY
