@@ -193,11 +193,16 @@ dashboard = pn.Column(
     pn.Row(pn.pane.Markdown('# ChatWithYourData_Bot')),
     pn.Tabs(('Conversation', tab1), ('Database', tab2), ('Chat History', tab3),('Configure', tab4))
 )
-pn.extension()
-if is_interactive:
-    dashboard.servable()
-else:
-    pn.panel(dashboard).show()
+
+def execute():
+    pn.extension()
+    if is_interactive:
+        dashboard.servable()
+    else:
+        pn.panel(dashboard).show()
+
+if __name__ == "__main__":
+    execute()
 
 
 # dashboard.servable()
