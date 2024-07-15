@@ -1430,6 +1430,26 @@ test = ["certifi", "pretend", "pytest (>=6.2.0)", "pytest-benchmark", "pytest-co
 test-randomorder = ["pytest-randomly"]
 
 [[package]]
+name = "ctransformers"
+version = "0.2.27"
+description = "Python bindings for the Transformer models implemented in C/C++ using GGML library."
+optional = false
+python-versions = "*"
+files = [
+    {file = "ctransformers-0.2.27-py3-none-any.whl", hash = "sha256:6a3ba47556471850d95fdbc59299a82ab91c9dc8b40201c5e7e82d71360772d9"},
+    {file = "ctransformers-0.2.27.tar.gz", hash = "sha256:25653d4be8a5ed4e2d3756544c1e9881bf95404be5371c3ed506a256c28663d5"},
+]
+
+[package.dependencies]
+huggingface-hub = "*"
+py-cpuinfo = ">=9.0.0,<10.0.0"
+
+[package.extras]
+cuda = ["nvidia-cublas-cu12", "nvidia-cuda-runtime-cu12"]
+gptq = ["exllama (==0.1.0)"]
+tests = ["pytest"]
+
+[[package]]
 name = "ctranslate2"
 version = "4.3.1"
 description = "Fast inference engine for Transformer models"
@@ -6511,6 +6531,17 @@ files = [
 tests = ["pytest"]
 
 [[package]]
+name = "py-cpuinfo"
+version = "9.0.0"
+description = "Get CPU info with pure Python"
+optional = false
+python-versions = "*"
+files = [
+    {file = "py-cpuinfo-9.0.0.tar.gz", hash = "sha256:3cdbbf3fac90dc6f118bfd64384f309edeadd902d7c8fb17f02ffa1fc3f49690"},
+    {file = "py_cpuinfo-9.0.0-py3-none-any.whl", hash = "sha256:859625bc251f64e21f077d099d4162689c762b5d6a4c3c97553d56241c9674d5"},
+]
+
+[[package]]
 name = "pyarrow"
 version = "16.1.0"
 description = "Python library for Apache Arrow"
@@ -10452,4 +10483,4 @@ test = ["big-O", "importlib-resources", "jaraco.functools", "jaraco.itertools", 
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.13"
-content-hash = "9c94f83b7f8b16204312e4637a41bc72eeb3389a5535af9ff91a40e8a0be7c22"
+content-hash = "1f8ebb3d75dacaa8a4d18e55be099ca2b4325de297fc694141a0ee3d952ce8a3"

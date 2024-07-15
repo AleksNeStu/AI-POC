@@ -1,6 +1,8 @@
 import os
 
-from langchain.llms import Cohere
+from langchain.llms import Cohere, __all__
+from langchain_community.llms.ctransformers import CTransformers
+from langchain_core.prompts import PromptTemplate
 # from langchain_cohere.llms import Cohere
 from langchain_openai import OpenAI, ChatOpenAI
 from langchain_community.llms.huggingface_pipeline import HuggingFacePipeline
@@ -34,9 +36,9 @@ bloom = HuggingFacePipeline.from_model_id(
 human_msg_txt = 'What is a AI applications developer roadmap in 2024?'
 human_msg = HumanMessage(content=human_msg_txt)
 
-def ask_qns():
+def ask_qns_via_model():
     try:
-        chatgpt_res = chatgpt([human_msg])
+        #chatgpt_res = chatgpt([human_msg])
         chatgpt_res_act = ('''
         content='As of 2024, an AI applications developer roadmap may look something like this:\n\n1. Understanding the 
         latest trends and advancements in AI technology, such as deep learning, natural language processing, 
@@ -57,64 +59,83 @@ def ask_qns():
         'logprobs': None} id='run-bcba435c-e761-4f2e-bb2c-e8c61244d0e3-0' usage_metadata={'input_tokens': 19, 
         'output_tokens': 284, 'total_tokens': 303}
         ''')
-        gpt3_res = gpt3(human_msg_txt)
+        #gpt3_res = gpt3(human_msg_txt)
         gpt3_res_act = ('''
-    
-    In 2024, an AI applications developer roadmap may include the following:
-    
-    1. Strong foundation in computer science: As AI technology advances, a strong understanding of computer science 
-    principles will become even more important for AI developers. This includes knowledge of programming languages, 
-    data structures, algorithms, and software development methodologies.
-    
-    2. Advanced knowledge of AI and machine learning: AI developers will need to have a deep understanding of AI and 
-    machine learning techniques, such as neural networks, natural language processing, and deep learning. They will also 
-    need to keep up with the latest advancements in these fields.
-    
-    3. Specialization in a specific industry or domain: In order to create effective AI applications, developers will 
-    need to have a strong understanding of the industry or domain they are working in. This could include healthcare, 
-    finance, transportation, or any other industry that can benefit from AI technology.
-    
-    4. Experience with big data and cloud computing: AI applications often require large amounts of data to train and 
-    improve their performance. Developers will need to have knowledge of big data technologies and cloud computing 
-    platforms to manage and process this data effectively.
-    
-    5. Understanding of ethical and legal implications: As AI technology becomes more advanced and integrated into 
-    various industries, developers will need to consider the ethical and legal implications of their applications. This
-        ''')
-        cohere_res = cohere(human_msg_txt)
+        
+        In 2024, an AI applications developer roadmap may include the following:
+        
+        1. Strong foundation in computer science: As AI technology advances, a strong understanding of computer science 
+        principles will become even more important for AI developers. This includes knowledge of programming languages, 
+        data structures, algorithms, and software development methodologies.
+        
+        2. Advanced knowledge of AI and machine learning: AI developers will need to have a deep understanding of AI and 
+        machine learning techniques, such as neural networks, natural language processing, and deep learning. They will also 
+        need to keep up with the latest advancements in these fields.
+        
+        3. Specialization in a specific industry or domain: In order to create effective AI applications, developers will 
+        need to have a strong understanding of the industry or domain they are working in. This could include healthcare, 
+        finance, transportation, or any other industry that can benefit from AI technology.
+        
+        4. Experience with big data and cloud computing: AI applications often require large amounts of data to train and 
+        improve their performance. Developers will need to have knowledge of big data technologies and cloud computing 
+        platforms to manage and process this data effectively.
+        
+        5. Understanding of ethical and legal implications: As AI technology becomes more advanced and integrated into 
+        various industries, developers will need to consider the ethical and legal implications of their applications. This
+            ''')
+        #cohere_res = cohere(human_msg_txt)
         cohere_res_act = ('''
-         As an AI chatbot, I cannot generate a roadmap for AI applications development, however, here is a general 
-         outline you can use as a starting point: 
-    
-    1. Acquire knowledge - Familiarize yourself with the foundational concepts of AI, including machine learning 
-    algorithms, natural language processing, computer vision, and data analytics, to make you become capable of working 
-    within these technologies. 
-    
-    2. Hands-on Practice - Consistently engage in AI projects allowing you to demonstrate your capabilities and deepen 
-    your understanding of AI tools and techniques, boosting your experience and showcasing your problem-solving abilities. 
-    
-    3. Business Acumen - Study business and entrepreneurship to become adept at identifying problems, determining when AI 
-    can provide solutions, and articulating these solutions to stakeholders. 
-    
-    4. Stay Current - Continue to upgrade your knowledge and skills by monitoring the AI industry, including the latest 
-    tools, techniques, and best practices, as well as emergent trends and technological disruptions. 
-    
-    5. Portfolio and Networking - Document your projects and their results in a portfolio highlighting your AI expertise 
-    and your abilities to solve real-world problems. Also, build connections within the AI community by participating in 
-    networks, forums, and conferences, which can reveal potential job opportunities or collaborators for projects. 
-    
-    6
+             As an AI chatbot, I cannot generate a roadmap for AI applications development, however, here is a general 
+             outline you can use as a starting point: 
+        
+        1. Acquire knowledge - Familiarize yourself with the foundational concepts of AI, including machine learning 
+        algorithms, natural language processing, computer vision, and data analytics, to make you become capable of working 
+        within these technologies. 
+        
+        2. Hands-on Practice - Consistently engage in AI projects allowing you to demonstrate your capabilities and deepen 
+        your understanding of AI tools and techniques, boosting your experience and showcasing your problem-solving abilities. 
+        
+        3. Business Acumen - Study business and entrepreneurship to become adept at identifying problems, determining when AI 
+        can provide solutions, and articulating these solutions to stakeholders. 
+        
+        4. Stay Current - Continue to upgrade your knowledge and skills by monitoring the AI industry, including the latest 
+        tools, techniques, and best practices, as well as emergent trends and technological disruptions. 
+        
+        5. Portfolio and Networking - Document your projects and their results in a portfolio highlighting your AI expertise 
+        and your abilities to solve real-world problems. Also, build connections within the AI community by participating in 
+        networks, forums, and conferences, which can reveal potential job opportunities or collaborators for projects. 
+        
+        6
         ''')
-        bloom_res = bloom(human_msg_txt)
+        #bloom_res = bloom(human_msg_txt)
         bloom_res_act = ('''
         What is a AI applications developer roadmap in 2024? What are the key challenges and opportunities for AI 
         applications developers in the coming years? What are the key trends and challenges for AI applications 
         developers in the coming years? What are the key trends and challenges for AI applications developers in the 
         coming years? What are the key trends
         ''')
+
+        # Run with a GPU
+        TEMPLATE = """<s>[INST] You are a academic chat bot who's need to help answer the
+        user question:
+        {user_input} [/INST] </s>
+        """
+        # https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF
+        # mistral = CTransformers(
+        #     model="TheBloke/Mistral-7B-Instruct-v0.1-GGUF",
+        #     model_file="mistral-7b-instruct-v0.1.Q4_K_M.gguf",
+        #     prompt = PromptTemplate(template=TEMPLATE, input_variables=["user_input"]))
+
+        # mistral_act = mistral(human_msg_txt)
+        g = 1
     except Exception as ex:
         print(ex)
         # raise ex
 
+
+def execute():
+    ask_qns_via_model()
+
+
 if __name__ == '__main__':
-    ask_qns()
+    execute()

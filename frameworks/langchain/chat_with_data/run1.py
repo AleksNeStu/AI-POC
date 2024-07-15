@@ -1,4 +1,3 @@
-import os
 import pickle
 import shutil
 from dataclasses import dataclass, field
@@ -10,8 +9,6 @@ import numpy as np
 import openai
 # python -m spacy download en_core_web_md
 import spacy
-import torch
-from dotenv import load_dotenv, find_dotenv
 from faker import Faker
 import panel as pn  # GUI
 from langchain.chains import RetrievalQA
@@ -104,10 +101,7 @@ Question: {question}
 Helpful Answer:
 """)
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-# You can set compute_type to "float32" or "int8".
-# Since your GPU does not support float16, you should set "int8" and not "int8_float16".
-compute_type = "float16" if device == "cuda" else "int8"
+
 nlp_eng = spacy.load("en_core_web_md")
 
 

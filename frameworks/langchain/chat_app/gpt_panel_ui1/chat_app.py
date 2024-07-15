@@ -5,7 +5,6 @@ import sys
 import openai
 import panel as pn
 import param
-from IPython import get_ipython
 from langchain.chains import ConversationalRetrievalChain
 from langchain_openai import ChatOpenAI
 from langchain_community.document_loaders import PyPDFLoader
@@ -13,19 +12,11 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import DocArrayInMemorySearch, Chroma
 from langchain_openai import OpenAIEmbeddings
 import ipynbname
-from dotenv import load_dotenv, find_dotenv
+
+from common.cfg import *
 
 
 
-
-def get_is_interactive():
-    try:
-        __file__
-        return False
-    except NameError:
-        return True
-
-is_interactive = get_is_interactive()
 current_dir = ipynbname.path().parent if is_interactive else Path(__file__).resolve().parent
 env_file = find_dotenv()
 load_dotenv(env_file, override=True)
