@@ -79,16 +79,11 @@ current_dir = Path(__file__).resolve().parent
 collection_path = current_dir / 'collection_data.pkl'
 collection_split_path = current_dir / 'collection_split.pkl'
 
-md_dir = root_dir / "data/docs/md"
-pdf_dir = root_dir / "data/docs/pdf/"
+
 tmp_dir = root_dir / "tmp"
 
 db_dir = current_dir / "db"
 
-pdf_1_path = pdf_dir / "MachineLearning-Lecture01.pdf"
-pdf_2_path = pdf_dir / "MachineLearning-Lecture02.pdf"
-pdf_3_path = pdf_dir / "MachineLearning-Lecture03.pdf"
-pdf_langchain = pdf_dir / "langchain.pdf"
 
 PROMPT_TMPL = ("""
 Use the following pieces of context to answer the question at the end. 

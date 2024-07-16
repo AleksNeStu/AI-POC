@@ -4,6 +4,6 @@ from overview.diff_llm_providers import diff_llms
 
 
 if __name__ == "__main__":
-    run1.execute()
-    chat_app.execute()
+    # run1.execute()
+    # chat_app.execute()
     diff_llms.execute()

@@ -10,9 +10,10 @@ from langchain.schema import (
     HumanMessage
 )
 
+from common.cfg import *
+
 current_dir = Path(__file__).resolve().parent
 current_dir_parent = current_dir.parent
-
 
 # https://python.langchain.com/v0.2/docs/integrations/providers/
 

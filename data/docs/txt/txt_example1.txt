@@ -1,0 +1,48 @@
+# Diffusers
+🤗 Diffusers is the go-to library for state-of-the-art pretrained diffusion models for generating images, audio, and even 3D structures of molecules. Whether you’re looking for a simple inference solution or want to train your own diffusion model, 🤗 Diffusers is a modular toolbox that supports both. Our library is designed with a focus on usability over performance, simple over easy, and customizability over abstractions.
+
+The library has three main components:
+
+State-of-the-art diffusion pipelines for inference with just a few lines of code. There are many pipelines in 🤗 Diffusers, check out the table in the pipeline overview for a complete list of available pipelines and the task they solve.
+Interchangeable noise schedulers for balancing trade-offs between generation speed and quality.
+Pretrained models that can be used as building blocks, and combined with schedulers, for creating your own end-to-end diffusion systems.
+
+
+# Transformers
+ State-of-the-art Machine Learning for PyTorch, TensorFlow, and JAX.
+
+ 🤗 Transformers provides APIs and tools to easily download and train state-of-the-art pretrained models. Using pretrained models can reduce your compute costs, carbon footprint, and save you the time and resources required to train a model from scratch. These models support common tasks in different modalities, such as:
+
+ 📝 Natural Language Processing: text classification, named entity recognition, question answering, language modeling, summarization, translation, multiple choice, and text generation.
+ 🖼️ Computer Vision: image classification, object detection, and segmentation.
+ 🗣️ Audio: automatic speech recognition and audio classification.
+ 🐙 Multimodal: table question answering, optical character recognition, information extraction from scanned documents, video classification, and visual question answering.
+
+ 🤗 Transformers support framework interoperability between PyTorch, TensorFlow, and JAX. This provides the flexibility to use a different framework at each stage of a model’s life; train a model in three lines of code in one framework, and load it for inference in another. Models can also be exported to a format like ONNX and TorchScript for deployment in production environments.
+
+# Hub client library
+  The huggingface_hub library allows you to interact with the Hugging Face Hub, a machine learning platform for creators and collaborators. Discover pre-trained models and datasets for your projects or play with the hundreds of machine learning apps hosted on the Hub. You can also create and share your own models and datasets with the community. The huggingface_hub library provides a simple way to do all these things with Python.
+
+  Read the quick start guide to get up and running with the huggingface_hub library. You will learn how to download files from the Hub, create a repository, and upload files to the Hub. Keep reading to learn more about how to manage your repositories on the 🤗 Hub, how to interact in discussions or even how to access the Inference API.
+
+
+# Datasets
+
+ 🤗 Datasets is a library for easily accessing and sharing datasets for Audio, Computer Vision, and Natural Language Processing (NLP) tasks.
+
+ Load a dataset in a single line of code, and use our powerful data processing methods to quickly get your dataset ready for training in a deep learning model. Backed by the Apache Arrow format, process large datasets with zero-copy reads without any memory constraints for optimal speed and efficiency. We also feature a deep integration with the Hugging Face Hub, allowing you to easily load and share a dataset with the wider machine learning community.
+
+ Find your dataset today on the Hugging Face Hub, and take an in-depth look inside of it with the live viewer.
+
+# Tokenizers
+  Fast State-of-the-art tokenizers, optimized for both research and production
+
+  🤗 Tokenizers provides an implementation of today’s most used tokenizers, with a focus on performance and versatility. These tokenizers are also used in 🤗 Transformers.
+
+  Main features:
+  Train new vocabularies and tokenize, using today’s most used tokenizers.
+  Extremely fast (both training and tokenization), thanks to the Rust implementation. Takes less than 20 seconds to tokenize a GB of text on a server’s CPU.
+  Easy to use, but also extremely versatile.
+  Designed for both research and production.
+  Full alignment tracking. Even with destructive normalization, it’s always possible to get the part of the original sentence that corresponds to any token.
+  Does all the pre-processing: Truncation, Padding, add the special tokens your model needs.
