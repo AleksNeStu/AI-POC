@@ -78,6 +78,10 @@ openai.api_key = OPENAI_API_KEY
 current_dir = Path(__file__).resolve().parent
 
 current_dir_parent = current_dir.parent
+
+collection_path = current_dir / 'collection_data.pkl'
+collection_split_path = current_dir / 'collection_split.pkl'
+
 md_dir = current_dir_parent / "data/docs/md"
 pdf_dir = current_dir_parent / "data/docs/pdf/"
 tmp_dir = current_dir_parent / "tmp"
@@ -227,27 +231,14 @@ def lazy_parse_patched(self, blob: Blob) -> Iterator[Document]:
 FasterWhisperParser.lazy_parse = lazy_parse_patched
 
 
-def dump_collection(data_obj: object = collection_data, data_name: str = "collection_data"):
-    collection_file = f"{current_dir}/{data_name}.pkl"
-    with open(collection_file, "wb") as f:
-        pickle.dump(data_obj, f)
-
-
-def load_collection(data_name: str = "collection_data"):
-    collection_file = f"{current_dir}/{data_name}.pkl"
-    with open(collection_file, "rb") as f:
-        res = pickle.load(f)
-    return res
-
-
 collection_data_saved = (
-    load_collection("collection_data")
-    if (current_dir / "collection_data.pkl").exists()
+    load_data(collection_path)
+    if collection_path.exists()
     else None
 )
 collection_split_saved = (
-    load_collection("collection_split")
-    if (current_dir / "collection_split.pkl").exists()
+    load_data(collection_split_path)
+    if collection_split_path.exists()
     else None
 )
 
@@ -358,7 +349,7 @@ def load_docs(use_saved: bool = True, add_duty_data: bool = False):
                 URL("https://github.com/langchain-ai/langchain/blob/master/README.md")
             ]
         )
-        dump_collection()
+        dump_data(collection_data, collection_path)
 
         add_dirty_data_to_collection()
 
@@ -666,8 +657,9 @@ class TestMLCases:
     @staticmethod
     def test_qa(vector_db, load_res = False, chain_type = 'stuff'):
         t_name = TestMLCases.test_qa.__name__
+        data_path = current_dir / f'{t_name}.pkl'
         if load_res:
-            res = load_collection(t_name)
+            res = load_data(data_path)
             return res
 
         qa_chain = RetrievalQA.from_chain_type(
@@ -686,7 +678,7 @@ class TestMLCases:
         # assert res == (
         #     "The topics discussed in the context provided include locally weighted regression, linear regression, logistic regression, the perceptron algorithm, and Newton's method."
         # )
-        dump_collection(res, t_name)
+        dump_data(res, data_path)
         return res
 
     @staticmethod
@@ -694,8 +686,9 @@ class TestMLCases:
             vector_db, load_res = False, chain_type ='stuff'):
         # console
         t_name = TestMLCases.test_debug_qa_diff_chain_types.__name__
+        data_path = current_dir / f'{t_name}.pkl'
         if load_res:
-            res = load_collection(t_name)
+            res = load_data(data_path)
             return res
 
 
@@ -708,7 +701,6 @@ class TestMLCases:
         os.environ["LANGCHAIN_PROJECT"] = f"Tracing {t_name} - {unique_id}"
         # os.environ["LANGCHAIN_ENDPOINT"] = "https://api.langchain.plus"
         os.environ["LANGCHAIN_ENDPOINT"] = "https://api.smith.langchain.com"
-        os.environ["LANGCHAIN_API_KEY"] = LANGCHAIN_API_KEY
         set_debug(True)
 
         with tracing_v2_enabled(project_name="My Project"):
@@ -732,7 +724,7 @@ class TestMLCases:
             res_answer_refine = res_refine["result"]
             results.append(res_refine)
 
-            dump_collection(results, t_name)
+            dump_data(results, data_path)
             os.environ["LANGCHAIN_TRACING_V2"] = "false"
             set_debug(False)
             return results
@@ -766,8 +758,9 @@ class TestMLCases:
     @staticmethod
     def test_qa_w_prompt_tmpl(vector_db, load_res = False, chain_type = 'stuff'):
         t_name = TestMLCases.test_qa_w_prompt_tmpl.__name__
+        data_path = current_dir / f'{t_name}.pkl'
         if load_res:
-            res = load_collection(t_name)
+            res = load_data(data_path)
             return res
 
         qa_chain_prompt = PromptTemplate.from_template(PROMPT_TMPL)
@@ -783,7 +776,7 @@ class TestMLCases:
         res_answer = res['result']
         print(f'{t_name} answer: {res_answer}')
         res_docs_src = res['source_documents']
-        dump_collection(res, t_name)
+        dump_data(res, data_path)
         return res
 
 
