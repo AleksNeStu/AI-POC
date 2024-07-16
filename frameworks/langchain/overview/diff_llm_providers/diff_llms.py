@@ -159,11 +159,20 @@ def chain_of_few_llms():
         input_variables=["slogan"],
         template="Generate opposite slogan to: {slogan}",
     )
-    chain3 = LLMChain(llm=cohere, prompt=human_msg_prompt3)
+    chain3 = LLMChain(llm=gpt3, prompt=human_msg_prompt3)
 
     seq_chain = SimpleSequentialChain(
-        chains=[chain1, chain2, chain3], verbose=True)
+        chains=[
+            chain1,
+            chain2,
+            chain3
+        ], verbose=True)
     final_res = seq_chain.run("Electro bikes")
+    # > Entering new SimpleSequentialChain chain...
+    # "SparkCycle"
+    # "Ride. Ignite. Inspire."
+    # "Walk. Dampen. Discourage."
+    # > Finished chain.
     return final_res
 
 
