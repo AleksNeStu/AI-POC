@@ -1,0 +1,26 @@
+# Set Python files to be recognized as Python
+*.py linguist-language=Python
+
+# Set configuration files to be recognized as INI
+*.ini linguist-language=INI
+
+# Set Markdown files to be recognized as Markdown
+*.md linguist-language=Markdown
+
+# Set YAML files to be recognized as YAML
+*.yaml linguist-language=YAML
+
+# Set JSON files to be recognized as JSON
+*.json linguist-language=JSON
+
+# Set requirements files to be recognized as text
+requirements.txt linguist-language=Text
+
+# Ignore generated Python bytecode files
+*.pyc linguist-vendored
+
+# Ignore Python virtual environment directories
+venv/ linguist-vendored
+
+# Ignore Jupyter Notebook files
+*.ipynb binary
