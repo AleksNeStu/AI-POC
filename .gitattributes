@@ -1,26 +1,29 @@
-# Set Python files to be recognized as Python
-*.py linguist-language=Python
+# Basic .gitattributes for a python repo.
 
-# Set configuration files to be recognized as INI
-*.ini linguist-language=INI
+# Source files
+# ============
+*.pxd    text diff=python
+*.py     text diff=python
+*.py3    text diff=python
+*.pyw    text diff=python
+*.pyx    text diff=python
+*.pyz    text diff=python
+*.pyi    text diff=python
 
-# Set Markdown files to be recognized as Markdown
-*.md linguist-language=Markdown
+# Binary files
+# ============
+*.db     binary
+*.p      binary
+*.pkl    binary
+*.pickle binary
+*.pyc    binary export-ignore
+*.pyo    binary export-ignore
+*.pyd    binary
 
-# Set YAML files to be recognized as YAML
-*.yaml linguist-language=YAML
+# Jupyter notebook
+# *.ipynb  text eol=lf
 
-# Set JSON files to be recognized as JSON
-*.json linguist-language=JSON
-
-# Set requirements files to be recognized as text
-requirements.txt linguist-language=Text
-
-# Ignore generated Python bytecode files
-*.pyc linguist-vendored
-
-# Ignore Python virtual environment directories
-venv/ linguist-vendored
-
-# Ignore Jupyter Notebook files
-*.ipynb binary
+# Note: .db, .p, and .pkl files are associated
+# with the python modules ``pickle``, ``dbm.*``,
+# ``shelve``, ``marshal``, ``anydbm``, & ``bsddb``
+# (among others).
