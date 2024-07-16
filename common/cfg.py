@@ -86,7 +86,7 @@ def get_data(file = None, load = True, *args, **kwargs):
 
         @wraps(func)
         def wrapper(*args, **kwargs):
-            if data_path.exists() and load:
+            if data_path.exists() and load and data_path.stat().st_size > 0:
                 res = load_data(data_path)
             else:
                 res = func(*args, *kwargs)

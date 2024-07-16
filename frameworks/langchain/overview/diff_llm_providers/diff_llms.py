@@ -1,22 +1,19 @@
 from types import SimpleNamespace
 
-
+from langchain.chains.conversation.base import ConversationChain
 from langchain.indexes import VectorstoreIndexCreator
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.llms.ctransformers import CTransformers
-from langchain_community.vectorstores import DocArrayInMemorySearch
-from langchain_core.prompts import PromptTemplate
-# from langchain.llms import Cohere
-from langchain_cohere.llms import Cohere
-# from langchain_cohere import ChatCohere
-from langchain_openai import OpenAI, ChatOpenAI, OpenAIEmbeddings
-from langchain_community.llms.huggingface_pipeline import HuggingFacePipeline
+from langchain.memory import ConversationBufferWindowMemory, ConversationSummaryMemory, CombinedMemory
 from langchain.schema import (
     HumanMessage
 )
+# from langchain.llms import Cohere
+from langchain_cohere.llms import Cohere
 from langchain_community.document_loaders import TextLoader
-from sentence_transformers import SentenceTransformer
-
+from langchain_community.llms.ctransformers import CTransformers
+from langchain_community.llms.huggingface_pipeline import HuggingFacePipeline
+from langchain_core.prompts import PromptTemplate
+# from langchain_cohere import ChatCohere
+from langchain_openai import OpenAI, ChatOpenAI, OpenAIEmbeddings
 
 from common.cfg import *
 
@@ -99,11 +96,51 @@ def qa_using_external_doc():
     res = txt_index.query(human_msg2_txt, llm=gpt3)
     return res
 
+@get_data(load=True)
+def conversation_chain_with_memory():
+    conv_res = SimpleNamespace()
+    # Summarize all previous conversations for you (to save tokens helpful)
+    conv_memory = ConversationBufferWindowMemory(
+        memory_key="chat_history_lines",
+        input_key="input",
+        k=1
+    )
+    summary_memory = ConversationSummaryMemory(llm=gpt3, input_key="input")
+    # Combined
+    combine_memory = CombinedMemory(memories=[conv_memory, summary_memory])
+    _DEFAULT_TEMPLATE = """
+    The following is a strict conversation between a Human and an AI.
+    Summary of conversation:
+    {history}
+    Current conversation:
+    {chat_history_lines}
+    Human: {input}
+    AI:
+    """
+    prompt_tmpl = PromptTemplate(
+        input_variables=["history", "input", "chat_history_lines"],
+        template=_DEFAULT_TEMPLATE
+    )
+    conv_chain = ConversationChain(
+        llm=gpt3,
+        verbose=True,
+        memory=combine_memory,
+        prompt=prompt_tmpl
+    )
+    conv_res.res1 = conv_chain.run('How to start learning Gen AI?')
+    conv_res.res2 = conv_chain.run('Provide more simple steps to study')
+    conv_res.res3 = conv_chain.run('Suggest similar to Gen AI topic for me')
+    # TypeError: cannot pickle '_thread.RLock' object
+    # conv_res.combine_memory = combine_memory
+
+    return conv_res
+
+
 
 def execute():
     res1 = ask_questions_using_diff_provider_models()
     res2 = qa_using_external_doc()
-    g = 2
+    res3 = conversation_chain_with_memory()
 
 
 if __name__ == '__main__':
