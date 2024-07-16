@@ -9,6 +9,8 @@ env_file = find_dotenv()
 load_dotenv(env_file, override=True)
 
 
+root_dir = Path(__file__).parent.parent.resolve()
+
 device = "cuda" if torch.cuda.is_available() else "cpu"
 # You can set compute_type to "float32" or "int8".
 # Since your GPU does not support float16, you should set "int8" and not "int8_float16".

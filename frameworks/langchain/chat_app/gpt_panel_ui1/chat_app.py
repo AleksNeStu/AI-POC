@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
 
-import sys
 import openai
 import panel as pn
 import param
@@ -15,12 +14,7 @@ import ipynbname
 
 from common.cfg import *
 
-
-
 current_dir = ipynbname.path().parent if is_interactive else Path(__file__).resolve().parent
-env_file = find_dotenv()
-load_dotenv(env_file, override=True)
-# load_dotenv()
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 openai.api_key = OPENAI_API_KEY
@@ -30,7 +24,6 @@ db = None
 llm_name = "gpt-3.5-turbo"
 
 db_dir = current_dir / "db"
-root_dir = current_dir.parent.parent
 pdf_dir = root_dir / "data/docs/pdf/"
 pdf_1_path = pdf_dir / "MachineLearning-Lecture01.pdf"
 

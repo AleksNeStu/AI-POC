@@ -1,20 +1,14 @@
-import os
 from types import SimpleNamespace
 
-from langchain.llms import Cohere, __all__
+from langchain.llms import Cohere
 from langchain_community.llms.ctransformers import CTransformers
 from langchain_core.prompts import PromptTemplate
 # from langchain_cohere.llms import Cohere
 from langchain_openai import OpenAI, ChatOpenAI
 from langchain_community.llms.huggingface_pipeline import HuggingFacePipeline
 from langchain.schema import (
-    AIMessage,
-    HumanMessage,
-    SystemMessage
+    HumanMessage
 )
-
-from common.cfg import *
-
 
 current_dir = Path(__file__).resolve().parent
 current_dir_parent = current_dir.parent
@@ -42,7 +36,10 @@ bloom = HuggingFacePipeline.from_model_id(
 human_msg_txt = 'What is a AI applications developer roadmap in 2024?'
 human_msg = HumanMessage(content=human_msg_txt)
 
-def ask_qns_via_model():
+def ask_qns_via_model(load=False):
+    d_path = current_dir / f'{ask_qns_via_model.__name__}.pkl'
+    if load:
+        return load_data(d_path)
     qn_answers = SimpleNamespace()
     try:
         qn_answers.chatgpt_res = chatgpt([human_msg])
@@ -66,11 +63,13 @@ def ask_qns_via_model():
         print(ex)
         # raise ex
     finally:
-        dump_data(qn_answers, current_dir / f'{ask_qns_via_model.__name__}.pkl')
+        res = dump_data(qn_answers, d_path)
+        return res
 
 
 def execute():
-    ask_qns_via_model()
+    res1 = ask_qns_via_model(load=True)
+    g = 1
 
 
 if __name__ == '__main__':

@@ -1,4 +1,3 @@
-import pickle
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -77,14 +76,12 @@ use_paid_services = True
 openai.api_key = OPENAI_API_KEY
 current_dir = Path(__file__).resolve().parent
 
-current_dir_parent = current_dir.parent
-
 collection_path = current_dir / 'collection_data.pkl'
 collection_split_path = current_dir / 'collection_split.pkl'
 
-md_dir = current_dir_parent / "data/docs/md"
-pdf_dir = current_dir_parent / "data/docs/pdf/"
-tmp_dir = current_dir_parent / "tmp"
+md_dir = root_dir / "data/docs/md"
+pdf_dir = root_dir / "data/docs/pdf/"
+tmp_dir = root_dir / "tmp"
 
 db_dir = current_dir / "db"
 
@@ -657,7 +654,7 @@ class TestMLCases:
     @staticmethod
     def test_qa(vector_db, load_res = False, chain_type = 'stuff'):
         t_name = TestMLCases.test_qa.__name__
-        data_path = current_dir / f'{t_name}.pkl'
+        data_path = root_dir / f'{t_name}.pkl'
         if load_res:
             res = load_data(data_path)
             return res
@@ -686,7 +683,7 @@ class TestMLCases:
             vector_db, load_res = False, chain_type ='stuff'):
         # console
         t_name = TestMLCases.test_debug_qa_diff_chain_types.__name__
-        data_path = current_dir / f'{t_name}.pkl'
+        data_path = root_dir / f'{t_name}.pkl'
         if load_res:
             res = load_data(data_path)
             return res
@@ -758,7 +755,7 @@ class TestMLCases:
     @staticmethod
     def test_qa_w_prompt_tmpl(vector_db, load_res = False, chain_type = 'stuff'):
         t_name = TestMLCases.test_qa_w_prompt_tmpl.__name__
-        data_path = current_dir / f'{t_name}.pkl'
+        data_path = root_dir / f'{t_name}.pkl'
         if load_res:
             res = load_data(data_path)
             return res
