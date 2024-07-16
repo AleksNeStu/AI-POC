@@ -1,6 +1,8 @@
 from types import SimpleNamespace
 
 from langchain.chains.conversation.base import ConversationChain
+from langchain.chains.llm import LLMChain
+from langchain.chains.sequential import SimpleSequentialChain
 from langchain.indexes import VectorstoreIndexCreator
 from langchain.memory import ConversationBufferWindowMemory, ConversationSummaryMemory, CombinedMemory
 from langchain.schema import (
@@ -11,7 +13,7 @@ from langchain_cohere.llms import Cohere
 from langchain_community.document_loaders import TextLoader
 from langchain_community.llms.ctransformers import CTransformers
 from langchain_community.llms.huggingface_pipeline import HuggingFacePipeline
-from langchain_core.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate, HumanMessagePromptTemplate, ChatPromptTemplate
 # from langchain_cohere import ChatCohere
 from langchain_openai import OpenAI, ChatOpenAI, OpenAIEmbeddings
 
@@ -47,7 +49,7 @@ human_msg = HumanMessage(content=human_msg_txt)
 human_msg2_txt = 'Make short summary for this document'
 
 @get_data(load=True)
-def ask_questions_using_diff_provider_models():
+def qa_using_diff_provider_models():
     # get_func_data_path(ask_questions_using_diff_provider_models)
     # d_path = current_dir / f'{ask_questions_using_diff_provider_models.__name__}.pkl'
     # if load:
@@ -81,7 +83,7 @@ def ask_questions_using_diff_provider_models():
 
 
 @get_data(load=True)
-def qa_using_external_doc():
+def qa_using_external_docs():
     """
     LineChain is a tool that aids in breaking down your document into smaller sections. You will create embedding vectors for each of these text segments. When a question is asked, LineChain will perform a semantic search to determine which text segment vectors closely match the question vector. It then retrieves the relevant text segment based on the question. This process ensures that the most applicable text is referred to when answering the question based on the document or text.
 
@@ -135,12 +137,41 @@ def conversation_chain_with_memory():
 
     return conv_res
 
+@get_data()
+def chain_of_few_llms():
+    human_msg_prompt1 = HumanMessagePromptTemplate(
+            prompt=PromptTemplate(
+                template="What is relevant name for a company that makes {product}?",
+                input_variables=["product"],
+            )
+        )
+    chat_prompt_tmpl1 = ChatPromptTemplate.from_messages([human_msg_prompt1])
+    chain1 = LLMChain(llm=chatgpt, prompt=chat_prompt_tmpl1)
+    # res1 = chain1.run("electro bikes")
+
+    human_msg_prompt2 = PromptTemplate(
+        input_variables=["company"],
+        template="Define slogan for the company: {company}",
+    )
+    chain2 = LLMChain(llm=gpt3, prompt=human_msg_prompt2)
+
+    human_msg_prompt3 = PromptTemplate(
+        input_variables=["slogan"],
+        template="Generate opposite slogan to: {slogan}",
+    )
+    chain3 = LLMChain(llm=cohere, prompt=human_msg_prompt3)
+
+    seq_chain = SimpleSequentialChain(
+        chains=[chain1, chain2, chain3], verbose=True)
+    final_res = seq_chain.run("Electro bikes")
+    return final_res
 
 
 def execute():
-    res1 = ask_questions_using_diff_provider_models()
-    res2 = qa_using_external_doc()
+    res1 = qa_using_diff_provider_models()
+    res2 = qa_using_external_docs()
     res3 = conversation_chain_with_memory()
+    res4 = chain_of_few_llms()
 
 
 if __name__ == '__main__':
