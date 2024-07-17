@@ -72,6 +72,7 @@ google-search-results = "^2.4.2"
 cohere = "^5.5.8"
 langchain-cohere = "^0.1.9"
 ctransformers = "^0.2.27"
+numexpr = "^2.10.1"
 
 
 [tool.poetry.group.dev.dependencies]

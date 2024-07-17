@@ -1,13 +1,15 @@
+import io
 import os
 import pickle
 from functools import wraps
 from pathlib import Path
+from types import SimpleNamespace
 
 import torch
 from dotenv import find_dotenv, load_dotenv
 import inspect
 import openai
-
+import contextlib
 
 # Load environment variables
 env_file = find_dotenv()
@@ -51,6 +53,9 @@ def get_is_interactive():
         return True
 is_interactive = get_is_interactive()
 
+# Prepare a StringIO object to capture the stdout
+log_stream = io.StringIO()
+
 
 # Helpers
 def dump_data(data_obj: object, data_path: Path):
@@ -71,6 +76,7 @@ def get_func_data_path(func, current_dir):
 
 
 
+
 def get_data(file = None, load = True, *args, **kwargs):
     caller_file = file if file else inspect.stack()[1].filename
 
@@ -86,12 +92,21 @@ def get_data(file = None, load = True, *args, **kwargs):
 
         @wraps(func)
         def wrapper(*args, **kwargs):
+            final_result = SimpleNamespace()
+
             if data_path.exists() and load and data_path.stat().st_size > 0:
-                res = load_data(data_path)
+                final_result = load_data(data_path)
             else:
-                res = func(*args, *kwargs)
-                dump_data(res, data_path)
-            return res
+                # Capture the verbose output during agent initialization
+                with contextlib.redirect_stdout(log_stream):
+                    res = func(*args, *kwargs)
+
+                # Retrieve the log from the StringIO object
+                final_result.log = log_stream.getvalue()
+                final_result.res = res
+
+                dump_data(final_result, data_path)
+            return final_result
 
         return wrapper
 

@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 
+from langchain.agents import initialize_agent, AgentType
 from langchain.chains.conversation.base import ConversationChain
 from langchain.chains.llm import LLMChain
 from langchain.chains.sequential import SimpleSequentialChain
@@ -10,6 +11,7 @@ from langchain.schema import (
 )
 # from langchain.llms import Cohere
 from langchain_cohere.llms import Cohere
+from langchain_community.agent_toolkits.load_tools import load_tools
 from langchain_community.document_loaders import TextLoader
 from langchain_community.llms.ctransformers import CTransformers
 from langchain_community.llms.huggingface_pipeline import HuggingFacePipeline
@@ -175,12 +177,28 @@ def chain_of_few_llms():
     # > Finished chain.
     return final_res
 
+@get_data()
+def agents():
+    agent_tools = load_tools(
+        ["serpapi", "llm-math"], llm=gpt3
+    )
+    agent = initialize_agent(
+        agent_tools, llm=gpt3, agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+        verbose=True
+    )
+    res = agent.run(
+        "Who is main creator of OpenAI? "
+        "What is her or his current age raised to the 0.777 power?"
+    )
+    return res
+
 
 def execute():
     res1 = qa_using_diff_provider_models()
     res2 = qa_using_external_docs()
     res3 = conversation_chain_with_memory()
     res4 = chain_of_few_llms()
+    res5 = agents()
 
 
 if __name__ == '__main__':
