@@ -31,6 +31,7 @@ txt_dir = root_dir / "data/docs/txt"
 txt1_path = txt_dir / "txt_example1.txt"
 pdf_dir = root_dir / "data/docs/pdf/"
 pdf_ai_report_dir = root_dir/ "data/pdf_ai_report"
+pdf_ai_report_1 = pdf_ai_report_dir / 'HAI_AI-Index-Report-2024_Chapter1.pdf'
 pdf_1_path = pdf_dir / "MachineLearning-Lecture01.pdf"
 pdf_2_path = pdf_dir / "MachineLearning-Lecture02.pdf"
 pdf_3_path = pdf_dir / "MachineLearning-Lecture03.pdf"
