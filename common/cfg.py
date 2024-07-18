@@ -77,7 +77,7 @@ def get_func_data_path(func, current_dir):
 
 
 
-def get_data(file = None, load = True, *args, **kwargs):
+def get_data(file = None, load = True, log = True, *args, **kwargs):
     caller_file = file if file else inspect.stack()[1].filename
 
     def decorator(func):
@@ -92,17 +92,28 @@ def get_data(file = None, load = True, *args, **kwargs):
 
         @wraps(func)
         def wrapper(*args, **kwargs):
-            final_result = SimpleNamespace()
+            final_result = SimpleNamespace(log=None, err=None, res=None)
 
             if data_path.exists() and load and data_path.stat().st_size > 0:
-                final_result = load_data(data_path)
+                res_err = getattr(final_result, 'err', None)
+                # Do not load res if last result was with error
+                if not res_err:
+                    final_result = load_data(data_path)
             else:
-                # Capture the verbose output during agent initialization
-                with contextlib.redirect_stdout(log_stream):
-                    res = func(*args, *kwargs)
+                try:
+                    res = None
+                    # Capture the verbose output during agent initialization
+                    if log:
+                        with contextlib.redirect_stdout(log_stream):
+                            res = func(*args, *kwargs)
+                        final_result.log = log_stream.getvalue()
+                    else:
+                        res = func(*args, *kwargs)
+                except Exception as ex:
+                    print(f'Error for running `{func.__name__}`: {ex}')
+                    final_result.err = ex
 
                 # Retrieve the log from the StringIO object
-                final_result.log = log_stream.getvalue()
                 final_result.res = res
 
                 dump_data(final_result, data_path)

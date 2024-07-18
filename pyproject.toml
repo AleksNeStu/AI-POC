@@ -73,6 +73,7 @@ cohere = "^5.5.8"
 langchain-cohere = "^0.1.9"
 ctransformers = "^0.2.27"
 numexpr = "^2.10.1"
+langgraph = "^0.1.9"
 
 
 [tool.poetry.group.dev.dependencies]

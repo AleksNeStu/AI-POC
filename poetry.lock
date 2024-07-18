@@ -3665,13 +3665,13 @@ tenacity = ">=8.1.0,<8.4.0 || >8.4.0,<9.0.0"
 
 [[package]]
 name = "langchain-core"
-version = "0.2.11"
+version = "0.2.21"
 description = "Building applications with LLMs through composability"
 optional = false
 python-versions = "<4.0,>=3.8.1"
 files = [
-    {file = "langchain_core-0.2.11-py3-none-any.whl", hash = "sha256:c7ca4dc4d88e3c69fd7916c95a7027c2b1a11c2db5a51141c3ceb8afac212208"},
-    {file = "langchain_core-0.2.11.tar.gz", hash = "sha256:7a4661b50604eeb20c3373fbfd8a4f1b74482a6ab4e0f9df11e96821ead8ef0c"},
+    {file = "langchain_core-0.2.21-py3-none-any.whl", hash = "sha256:805b1f53e0e2424b83e3673cba1c9354105c5a5e4a1d0d768b1e70d8ac0d604d"},
+    {file = "langchain_core-0.2.21.tar.gz", hash = "sha256:3d1e28179a5d496b900ebef45e1471eaae9fb63fc570f89ded78b026fd08ba84"},
 ]
 
 [package.dependencies]
@@ -3795,6 +3795,20 @@ files = [
 
 [package.dependencies]
 six = "*"
+
+[[package]]
+name = "langgraph"
+version = "0.1.9"
+description = "Building stateful, multi-actor applications with LLMs"
+optional = false
+python-versions = "<4.0,>=3.9.0"
+files = [
+    {file = "langgraph-0.1.9-py3-none-any.whl", hash = "sha256:b3b5698686ae71fbf0cb2439f34d8a840f061c0e5ddc76d618674c3611ed787a"},
+    {file = "langgraph-0.1.9.tar.gz", hash = "sha256:9ab6150d4b46089f8ea484fc68b1b28e0dd3adb7e383f0b8520ec04b7f6d5938"},
+]
+
+[package.dependencies]
+langchain-core = ">=0.2.19,<0.3"
 
 [[package]]
 name = "langsmith"
@@ -10524,4 +10538,4 @@ test = ["big-O", "importlib-resources", "jaraco.functools", "jaraco.itertools", 
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.13"
-content-hash = "1edf3e0f93b11a82b3e224798219d5e2f24383f227204072cb84394011122cb6"
+content-hash = "6379db6fe18a15653a842541f8545f60c6ba935b0144948fd97327c8644d3011"

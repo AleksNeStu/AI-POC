@@ -18,6 +18,7 @@ from langchain_community.llms.huggingface_pipeline import HuggingFacePipeline
 from langchain_core.prompts import PromptTemplate, HumanMessagePromptTemplate, ChatPromptTemplate
 # from langchain_cohere import ChatCohere
 from langchain_openai import OpenAI, ChatOpenAI, OpenAIEmbeddings
+from langchain_community.tools import AIPluginTool
 
 from common.cfg import *
 
@@ -180,7 +181,11 @@ def chain_of_few_llms():
 @get_data()
 def agents():
     agent_tools = load_tools(
-        ["serpapi", "llm-math"], llm=gpt3
+        [
+            "serpapi",
+            "llm-math",
+            # "python_repl",
+        ], llm=gpt3
     )
     agent = initialize_agent(
         agent_tools, llm=gpt3, agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
@@ -192,6 +197,38 @@ def agents():
     )
     return res
 
+@get_data()
+def chatgpt_plugins():
+    # No User Auth
+    # https://www.klarna.com/.well-known/ai-plugin.json
+    # https://www.joinmilo.com/.well-known/ai-plugin.json
+    # https://api.speak.com/.well-known/ai-plugin.json
+    # https://www.wolframalpha.com/.well-known/ai-plugin.json
+    # https://server.shop.app/.well-known/ai-plugin.json
+    # Require User Auth
+    # https://slack.com/.well-known/ai-plugin.json
+    # https://zapier.com/.well-known/ai-plugin.json
+    # Closed-form APIs - need auth to access
+    # https://instacart.com/.well-known/ai-plugin.json
+    # https://www.kayak.com/.well-known/ai-plugin.json
+    # https://opentable.com/.well-known/ai-plugin.json
+    # https://apim.expedia.com/.well-known/ai-plugin.json
+    tool = AIPluginTool.from_plugin_url(
+        "https://www.klarna.com/.well-known/ai-plugin.json")
+    tools = load_tools(["requests_all"])
+    tools += [tool]
+
+    agent_chain = initialize_agent(
+        tools, chatgpt, agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION, verbose=True
+    )
+    res = agent_chain.run("what t shirts are available in klarna?")
+    # from langgraph.prebuilt import chat_agent_executor
+    # agent_executor = chat_agent_executor.create_tool_calling_executor(
+    #     chatgpt, tools)
+    # response = agent_executor.invoke({"messages": [HumanMessage(content="""What are some t-shirts at klarna?""")]})
+    # res = response['messages'][-1].content
+    return res
+
 
 def execute():
     res1 = qa_using_diff_provider_models()
@@ -199,6 +236,7 @@ def execute():
     res3 = conversation_chain_with_memory()
     res4 = chain_of_few_llms()
     res5 = agents()
+    res6 = chatgpt_plugins()
 
 
 if __name__ == '__main__':
