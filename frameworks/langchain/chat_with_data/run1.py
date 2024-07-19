@@ -860,3 +860,6 @@ def execute(tests_1 = True, tests_2 = True):
     elif tests_2:
         vector_db_2 = init_db(name='tests_2', to_clean_dir=False)
         run_tests_2(vector_db=vector_db_2)
+
+if __name__ == "__main__":
+    execute()
