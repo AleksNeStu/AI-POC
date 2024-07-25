@@ -159,3 +159,17 @@ https://python.langchain.com/v0.1/docs/langsmith/walkthrough/
 
 LangSmith makes it easy to debug, test, and continuously improve your LLM applications.
 
+
+# Model title
+
+The term "Meta-Llama-3.1-405B-Instruct-FP8" can be broken down as follows:
+
+Meta-Llama-3.1: This is the name and version of the model, indicating it is part of the Llama series of models by Meta, and it is version 3.1.
+
+405B: This indicates the model has 405 billion parameters.
+
+Instruct: This suggests that the model is fine-tuned for instruction-following tasks. Models with the "Instruct" tag are often optimized to better understand and respond to user instructions or commands, making them more useful for interactive applications.
+
+FP8: This stands for "Floating Point 8," which refers to the numerical precision used in the model's computations. FP8 precision is a lower precision format compared to the more common FP16 (16-bit floating point) or FP32 (32-bit floating point). Using FP8 can significantly reduce the computational resources and memory required to run the model, making it more efficient while still maintaining good performance.
+
+In summary, "Meta-Llama-3.1-405B-Instruct-FP8" refers to a version 3.1 Llama model by Meta with 405 billion parameters, fine-tuned for instruction-following tasks, and utilizing FP8 numerical precision for efficient computation.
