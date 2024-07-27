@@ -37,12 +37,15 @@ pdf_2_path = pdf_dir / "MachineLearning-Lecture02.pdf"
 pdf_3_path = pdf_dir / "MachineLearning-Lecture03.pdf"
 pdf_langchain = pdf_dir / "langchain.pdf"
 
-
-device = "cuda" if torch.cuda.is_available() else "cpu"
+_device = lambda: "cuda" if torch.cuda.is_available() else "cpu"
+device = _device()
 # You can set compute_type to "float32" or "int8".
 # Since your GPU does not support float16, you should set "int8" and not "int8_float16".
-compute_type = "float16" if device == "cuda" else "int8"
+_compute_type = lambda: "float16" if device == "cuda" else "int8"
+compute_type = _compute_type()
 
+_cuda_version = lambda: torch.version.cuda
+cuda_version = _cuda_version()
 
 
 # Interactive or not

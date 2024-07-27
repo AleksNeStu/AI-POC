@@ -3,6 +3,7 @@ ML | AI related POC examples
 
 # How to setup
 ```sh
+curl -sSL https://install.python-poetry.org | python3 - --version 1.7.0
 poetry py3.11 ai-poc
 poetry config virtualenvs.in-project true
 poetry env use 3.11
@@ -14,6 +15,6 @@ poetry config --list
 # How to run
 ```sh
 git clone https://github.com/AleksNeStu/AI-POC.git
-poetry install
+poetry install --no-root
 source .venv/bin/activate
 ```
