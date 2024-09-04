@@ -18,3 +18,9 @@ git clone https://github.com/AleksNeStu/AI-POC.git
 poetry install --no-root
 source .venv/bin/activate
 ```
+
+# Structure
+[graph](graph) - Graphical solutions for AI\
+[frameworks](frameworks) - Frameworks for AI tasks\
+[libs](libs) - Libraries for AI tasks\
+[tasks](tasks) - AI tasks solution for different cases
