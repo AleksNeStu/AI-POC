@@ -37,3 +37,6 @@ Mathematical Reasoning: Solving logical and arithmetic problems based on provide
 Moral or Ethical Reasoning: This is emerging in advanced models like Anthropic's Claude, where models are designed to weigh ethical considerations and align decisions with human values.
 
 
+**4) Embeddings**\
+in machine learning refer to the representation of data (such as words, images, or other entities) as vectors in a continuous, high-dimensional space. These vectors capture the relationships, meanings, or features of the data in a way that makes it easier for models to perform tasks like classification, clustering, or searching for similarities.
+

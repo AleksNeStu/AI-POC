@@ -76,6 +76,7 @@ ctransformers = "^0.2.27"
 numexpr = "^2.10.1"
 langgraph = "^0.1.9"
 langchain-ollama = "^0.1.1"
+anthropic = "^0.34.2"
 
 
 [tool.poetry.group.dev.dependencies]
