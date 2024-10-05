@@ -78,6 +78,7 @@ langgraph = "^0.1.9"
 langchain-ollama = "^0.1.1"
 anthropic = "^0.34.2"
 flask-socketio = "^5.4.1"
+babyagi = "^0.0.7"
 
 
 [tool.poetry.group.dev.dependencies]
