@@ -20,7 +20,8 @@ source .venv/bin/activate
 ```
 
 # Structure
-[graph](graph) - Graphical solutions for AI\
 [frameworks](frameworks) - Frameworks for AI tasks\
+[graph](graph) - Graphical solutions for AI\
 [libs](libs) - Libraries for AI tasks\
+[models](models) - AI models solution for different cases\
 [tasks](tasks) - AI tasks solution for different cases
