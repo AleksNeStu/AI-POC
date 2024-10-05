@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer Snake Game</title>
+    <style>
+        /* Basic styling for the game canvas */
+        #gameCanvas {
+            border: 1px solid black;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        const canvas = document.getElementById('gameCanvas');
+        const context = canvas.getContext('2d');
+
+        socket.on('game_state', (gameState) => {
+            // Clear the canvas
+            context.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw each snake
+            gameState.snakes.forEach(snake => {
+                context.fillStyle = 'green';
+                snake.body.forEach(segment => {
+                    context.fillRect(segment[0] * 10, segment[1] * 10, 10, 10);
+                });
+            });
+
+            // Draw the food
+            context.fillStyle = 'red';
+            context.fillRect(gameState.food_position[0] * 10, gameState.food_position[1] * 10, 10, 10);
+        });
+
+        document.addEventListener('keydown', (event) => {
+            let direction;
+            switch (event.key) {
+                case 'ArrowUp':
+                    direction = { x: 0, y: -1 };
+                    break;
+                case 'ArrowDown':
+                    direction = { x: 0, y: 1 };
+                    break;
+                case 'ArrowLeft':
+                    direction = { x: -1, y: 0 };
+                    break;
+                case 'ArrowRight':
+                    direction = { x: 1, y: 0 };
+                    break;
+            }
+            if (direction) {
+                socket.emit('change_direction', direction);
+            }
+        });
+    </script>
+</body>
+</html>

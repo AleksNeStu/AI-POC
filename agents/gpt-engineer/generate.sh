@@ -1,0 +1,9 @@
+# Install gpt-engineer
+pip install gpt-engineer
+
+# Add prompt
+echo "Multiplayer snake in the browser. Use a python backend with MVC components. The view needs to stream the state to all connected players.
+Please implement also the html and js necessary to run the game with only the code you generate.|" > prompt
+
+# Generate code
+gpte
